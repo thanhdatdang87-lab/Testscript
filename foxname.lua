@@ -1,20 +1,3 @@
---[[
-    Foxname - 99 Nights in the Forest (NITF)
-    Deobfuscated / Reconstructed from IronBrew VM bytecode via dynamic analysis.
-    Original: fox.txt (IronBrew control-flow-flattened VM)
-    
-    Reconstructed by Devin.
-    Note: This is a semantic reconstruction based on execution tracing.
-    The UI structure, theme colors, element configs, and feature logic are
-    faithfully recovered. Some inner-loop details (e.g. exact damage remotes
-    for kill/chop aura) may differ from the original where the trace
-    couldn't fully capture them.
-    
-    WindUI Library: https://github.com/Footagesus/WindUI
-    Author: discord.gg/Foxname
-    Credits: Cáo Mod (Dex and owner script), Nova Hoang, Giang Hub
---]]
-
 ---------------------------------------------------------------------------
 -- Services
 ---------------------------------------------------------------------------
@@ -1710,8 +1693,8 @@ TabInfo:Section({ TextSize = 17, Title = "Developer", TextXAlignment = "Center" 
 TabInfo:Divider()
 
 TabInfo:Paragraph({
-    Title = "Cáo Mod",
-    Image = "rbxassetid://114176151890131",
+    Title = "THG2",
+    Image = "rbxassetid://120909377603186",
     ImageSize = 30,
     ThumbnailSize = 0,
     Thumbnail = "",
