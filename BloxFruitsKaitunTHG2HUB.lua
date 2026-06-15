@@ -362,7 +362,7 @@ logoBtn.Name = "ToggleLogo"
 logoBtn.Size = UDim2.new(0, 46, 0, 46)
 logoBtn.Position = UDim2.new(0, 14, 0, 14)
 logoBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
-logoBtn.Image = "rbxassetid://122444592900332"
+logoBtn.Image = "rbxassetid://120909377603186"
 logoBtn.AutoButtonColor = false
 logoBtn.Parent = gui
 
@@ -407,7 +407,7 @@ end)
 local bg = Instance.new("ImageLabel")
 bg.Size = UDim2.new(1,0,1,0)
 bg.BackgroundTransparency = 1
-bg.Image = "rbxassetid://137898463182318"
+bg.Image = "rbxassetid://133248147017287"
 bg.ImageTransparency = 0.1
 bg.ScaleType = Enum.ScaleType.Crop
 bg.Parent = main
@@ -431,7 +431,7 @@ Instance.new("UICorner", avatar).CornerRadius = UDim.new(1,0)
 
 -- Title & Subtitle
 local title = Instance.new("TextLabel")
-title.Text = "THE_REAL_PANDA HUB"
+title.Text = "THG2 Hub"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 22
 title.TextColor3 = Color3.fromRGB(120,200,255)
@@ -5882,10 +5882,10 @@ task["spawn"](function()
 							L_1_[45]["wt"](.5)
 							if not L_1_[45]["ffc"](L_1_[40], "Saber Expert") then
 WindUI:Notify({
-    Title = "the_real_Panda Hub",
+    Title = "THG2 Hub",
     Content = "Hopping...",
     Duration = 8,
-    Icon = "rbxassetid://122444592900332",
+    Icon = "rbxassetid://120909377603186",
 })
 								L_1_[45]["wt"](.1)
 								L_1_[10]:Teleport(L_1_[30], L_1_[35])
