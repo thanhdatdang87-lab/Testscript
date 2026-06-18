@@ -505,17 +505,24 @@ end
 local function CreateSlider(a_5, b_5, c_5, d_5, e_4, f_4, g_3, h_2)
     f_4 = f_4 or 0
     g_3 = g_3 or 100
+    
     local frame_3 = Instance.new("Frame")
     frame_3['LayoutOrder'] = c_5 or 0
     frame_3['Parent'] = b_5
     frame_3['AutomaticSize'] = Enum['AutomaticSize']['Y']
     frame_3['Size'] = UDim2.new(0, d_5, 0, 28)
+    
     local corner_8 = Instance.new("UICorner")
     corner_8['Parent'] = frame_3
     corner_8['CornerRadius'] = UDim.new(0, 10)
+    
     local gradient_2 = Instance.new("UIGradient")
     gradient_2['Parent'] = frame_3
-    gradient_2['Color'] = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(192, 75, 91)),ColorSequenceKeypoint.new(1, Color3.fromRGB(91, 33, 37))})
+    gradient_2['Color'] = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(192, 75, 91)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(91, 33, 37))
+    })
+    
     local label_3 = Instance.new("TextLabel", frame_3)
     label_3['TextWrapped'] = true
     label_3['BorderSizePixel'] = 0
@@ -524,61 +531,83 @@ local function CreateSlider(a_5, b_5, c_5, d_5, e_4, f_4, g_3, h_2)
     label_3['BackgroundColor3'] = Color3.fromRGB(255, 255, 255)
     label_3['FontFace'] = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum['FontWeight'].Bold, Enum['FontStyle'].Normal)
     label_3['TextColor3'] = Color3.fromRGB(255, 255, 255)
-    label_3['BackgroundColor3'] = Color3.fromRGB(255, 255, 255)
-    label_3['FontFace'] = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum['FontWeight'].Bold, Enum['FontStyle'].Normal)
-    label_3['TextColor3'] = Color3.fromRGB(255, 255, 255)
     label_3['BackgroundTransparency'] = 1
     label_3['Size'] = UDim2.new(0, d_5, 0, 28)
-    label_3['BorderColor3'] = Color3.fromRGB(0, 0, 0)
+    
     local stroke_4 = Instance.new("UIStroke", frame_3)
     stroke_4['Color'] = Color3.fromRGB(255, 255, 255)
     stroke_4['Thickness'] = 2
-    local function innerFn_2(input_12)
-        local value_12 = (input_12 - f_4) / (g_3 - f_4)
-        value_12 = math.clamp(value_12, 0, 0.999)
-        gradient_2['Transparency'] = NumberSequence.new({NumberSequenceKeypoint.new(0, 0),NumberSequenceKeypoint.new(value_12, 0),NumberSequenceKeypoint.new(value_12 + 0.001, 1),NumberSequenceKeypoint.new(1, 1)})
-        label_3['Text'] = a_5
+    
+    -- Hàm cập nhật thanh Slider và Logic xử lý thuộc tính game
+    local function innerFn_2(currentValue)
+        currentValue = math.clamp(currentValue, f_4, g_3)
+        local percentage = (currentValue - f_4) / (g_3 - f_4)
+        percentage = math.clamp(percentage, 0, 0.999)
+        
+        -- Cập nhật thanh màu LED chạy theo phần trăm
+        gradient_2['Transparency'] = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0),
+            NumberSequenceKeypoint.new(percentage, 0),
+            NumberSequenceKeypoint.new(math.min(percentage + 0.001, 1), 1),
+            NumberSequenceKeypoint.new(1, 1)
+        })
+        
+                -- SỬA LỖI: Hiển thị rõ tên kèm theo con số cụ thể (Làm tròn số cho đẹp)
+        label_3['Text'] = string.format("%s: %d", tostring(a_5), math.floor(currentValue))
+        
+        -- Cập nhật trực tiếp trạng thái nhân vật khi kéo (Mượt hơn)
+        local LP = game:GetService("Players").LocalPlayer
+        local character = LP.Character or LP.CharacterAdded:Wait()
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        
+        if humanoid then
+            if (h_2 == "WalkSpeed") then
+                humanoid.WalkSpeed = currentValue
+            elseif (h_2 == "JumpPower") then
+                humanoid.JumpPower = currentValue
+            end
+        end
+        
+        if (h_2 == "Stamina") then
+            LP:SetAttribute("Stamina", currentValue)
+        end
     end
+    
+    -- Khởi tạo giá trị ban đầu
     innerFn_2(f_4)
+    
     local flag_14 = false
-    frame_3['InputBegan']:Connect(function(input_2)
-        if ((input_2['UserInputType'] == Enum['UserInputType']['MouseButton1']) or (input_2['UserInputType'] == Enum['UserInputType']['Touch'])) then
-            flag_14 = true
-        end
-    end)
-    UserInputService['InputChanged']:Connect(function(input_3)
-        if (flag_14 and ((input_3['UserInputType'] == Enum['UserInputType']['MouseMovement']) or (input_3['UserInputType'] == Enum['UserInputType']['Touch']))) then
+frame_3['InputBegan']:Connect(function(input_2)
+    if ((input_2['UserInputType'] == Enum['UserInputType']['MouseButton1']) or (input_2['UserInputType'] == Enum['UserInputType']['Touch'])) then
+        flag_14 = true
+    end
+end)
+
+game:GetService("UserInputService")['InputChanged']:Connect(function(input_3)
+    if (flag_14 and ((input_3['UserInputType'] == Enum['UserInputType']['MouseMovement']) or (input_3['UserInputType'] == Enum['UserInputType']['Touch']))) then
+        if UI and UI["FrameDragDetector"] then
             UI["FrameDragDetector"]['Enabled'] = false
-            local absPos = input_3['Position']['X'] - frame_3['AbsolutePosition']['X']
-            local clamped_4 = math.clamp(absPos / frame_3['AbsoluteSize']['X'], 0, 1)
-            local value_13 = f_4 + ((g_3 - f_4) * clamped_4)
-            innerFn_2(value_13)
-            task.spawn(function()
-                while Humanoid do
-                    if (value_13 == 0) then
-                        break
-                    end
-                    if (h_2 == "WalkSpeed") then
-                        Humanoid['WalkSpeed'] = value_13
-                    elseif (h_2 == "JumpPower") then
-                        Humanoid['JumpPower'] = value_13
-                    elseif (h_2 == "Stamina") then
-                        LocalPlayer:SetAttribute("Stamina", value_13)
-                    end
-                    task.wait(0.1)
-                end
-            end)
         end
-    end)
-    UserInputService['InputEnded']:Connect(function(input_4)
-        if ((input_4['UserInputType'] == Enum['UserInputType']['MouseButton1']) or (input_4['UserInputType'] == Enum['UserInputType']['Touch'])) then
+        
+        local absPos = input_3['Position']['X'] - frame_3['AbsolutePosition']['X']
+        local clamped_4 = math.clamp(absPos / frame_3['AbsoluteSize']['X'], 0, 1)
+        local value_13 = f_4 + ((g_3 - f_4) * clamped_4)
+        innerFn_2(value_13)
+    end
+end)
+
+game:GetService("UserInputService")['InputEnded']:Connect(function(input_4)
+    if ((input_4['UserInputType'] == Enum['UserInputType']['MouseButton1']) or (input_4['UserInputType'] == Enum['UserInputType']['Touch'])) then
+        if UI and UI["FrameDragDetector"] then
             UI["FrameDragDetector"]['Enabled'] = true
-            flag_14 = false
         end
-    end)
-    return label_3
+        flag_14 = false
+    end
+end)
+
+return frame_3
 end
-local function CreateLabel(a_6, b_6, c_6, d_6, e_5, f_5)
+    local function CreateLabel(a_6, b_6, c_6, d_6, e_5, f_5)
     local frame_4 = Instance.new("Frame")
     frame_4['LayoutOrder'] = c_6 or 0
     frame_4['Parent'] = b_6
