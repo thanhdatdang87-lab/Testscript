@@ -4,8 +4,8 @@ local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/rel
 -- Khởi tạo Window
 local Window = WindUI:CreateWindow({
     Title = "THG2 Hub",
-    Subtitle = "Premium Edition v2.6",
-    Author = "Gemini Collaboration",
+    Subtitle = "Đang tải dữ liệu.....",
+    Author = "+1 Black Flip Obby",
     Folder = "THG2HubConfig"
 })
 
@@ -121,7 +121,7 @@ local isAutoJumpEnabled = false
 local isAntiAFKEnabled = true
 local isAutoRebirthEnabled = false
 local isAutoBoostEnabled = false
-local isBuyingProcess = false -- Biến khóa trạng thái khi đang thực hiện Tele mua giày
+local isBuyingProcess = false
 local isNoclipEnabled = false
 local isInfJumpEnabled = false
 local startTime = os.time()
@@ -208,18 +208,15 @@ local function getCurrentWins()
     return 0
 end
 
--- VÒNG LẶP KIỂM TRA MỐC WIN VÀ TELE ĐẾN BỤC ĐỂ MUA GIÀY TỰ ĐỘNG
+-- VÒNG LẶP KIỂM TRA MỐC WIN VÀ AUTO TELE MUA GIÀY
 task.spawn(function()
-    -- Lưu lại tên đôi giày gần nhất đã nâng cấp để tránh Tele đi mua lại đôi cũ
     local lastUpgradedShoe = ""
-    
     while true do
         if isAutoBoostEnabled and not isBuyingProcess then
             pcall(function()
                 local currentWins = getCurrentWins()
                 local targetShoe = nil
                 
-                -- Tìm đôi giày cao nhất có thể mua được dựa trên số Win hiện có
                 for _, shoe in ipairs(ShoeLocations) do
                     if currentWins >= shoe.Price then
                         targetShoe = shoe
@@ -227,55 +224,72 @@ task.spawn(function()
                     end
                 end
                 
-                -- Thực hiện Tele nếu tìm thấy giày phù hợp và đôi này mới hơn đôi cũ
                 if targetShoe and targetShoe.Name ~= lastUpgradedShoe then
-                    isBuyingProcess = true -- Bật khóa chặn để tạm dừng Auto Win/Auto Fly
+                    isBuyingProcess = true
                     sendCustomNotification("Đủ mốc! Đang Tele mua " .. targetShoe.Name .. " 🔥")
                     
                     local rootPart = getValidRoot()
                     if rootPart then
-                        -- Dịch chuyển trực tiếp đến tọa độ bục mua bồ đã đưa
                         rootPart.CFrame = targetShoe.CFrame
-                        task.wait(0.5) -- Đợi nửa giây cho game nhận diện va chạm mua hàng thành công
+                        task.wait(0.5)
                         lastUpgradedShoe = targetShoe.Name
                     end
-                    
-                    isBuyingProcess = false -- Mở khóa để tiếp tục Farm tự động
+                    isBuyingProcess = false
                 end
             end)
-            task.wait(1.5) -- Chu kỳ check mốc Win nhẹ nhàng chống giật lag
+            task.wait(1.5)
         else
             task.wait(0.5)
         end
     end
 end)
 
--- Vòng lặp Auto Rebirth phiên bản Siêu Cấp
+-- ================= CƠ CHẾ AUTO REBIRTH V2.7 SIÊU CẤP (ĐÃ FIX) =================
 task.spawn(function()
     while true do
         if isAutoRebirthEnabled then
             pcall(function()
+                -- 1. Quét sâu hệ thống truyền tin của Game (Bao gồm cả RemoteFunction)
                 for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-                    if obj:IsA("RemoteEvent") then
+                    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
                         local nameLower = string.lower(obj.Name)
-                        if string.find(nameLower, "rebirth") or string.find(nameLower, "taisinh") then
-                            obj:FireServer()
+                        -- Thêm từ khóa quét mở rộng để bao quát tất cả cách đặt tên của Dev game
+                        if string.find(nameLower, "rebirth") or string.find(nameLower, "taisinh") or string.find(nameLower, "rbt") or string.find(nameLower, "addrebirth") then
+                            if obj:IsA("RemoteEvent") then
+                                obj:FireServer()
+                            elseif obj:IsA("RemoteFunction") then
+                                obj:InvokeServer()
+                            end
                         end
                     end
                 end
 
+                -- 2. Quét giao diện (UI) và tự động kích hoạt Click giả lập nếu game đổi tên file ẩn
                 local playerGui = localPlayer:FindFirstChildOfClass("PlayerGui")
                 if playerGui then
                     for _, btn in pairs(playerGui:GetDescendants()) do
-                        if btn:IsA("TextButton") and string.find(string.lower(btn.Text), "tái sinh") and not string.find(string.lower(btn.Text), "bỏ qua") then
-                            if btn.MouseButton1Click then
-                                for _, connection in pairs(getconnections(btn.MouseButton1Click)) do connection:Fire() end
+                        if btn:IsA("TextButton") or btn:IsA("ImageButton") then
+                            local textLower = btn:IsA("TextButton") and string.lower(btn.Text) or ""
+                            local nameLower = string.lower(btn.Name)
+                            
+                            -- Kiểm tra nếu nút chứa text hoặc tên liên quan đến Tái Sinh
+                            if string.find(textLower, "tái sinh") or string.find(textLower, "rebirth") or string.find(nameLower, "rebirth") or string.find(nameLower, "taisinh") then
+                                -- Bỏ qua các nút hủy lệnh
+                                if not string.find(textLower, "bỏ qua") and not string.find(textLower, "close") and not string.find(textLower, "hủy") then
+                                    if btn.MouseButton1Click then
+                                        for _, connection in pairs(getconnections(btn.MouseButton1Click)) do 
+                                            connection:Fire() 
+                                        end
+                                    end
+                                    -- Click trực tiếp bằng hàm nội bộ của GuiObject nếu có hỗ trợ
+                                    if btn.SimulateClick then btn:SimulateClick() end
+                                end
                             end
                         end
                     end
                 end
             end)
-            task.wait(0.8)
+            task.wait(0.5) -- Tăng tốc độ kiểm tra vòng lặp lên 0.5s để Rebirth nhanh nhất có thể
         else
             task.wait(0.5)
         end
@@ -324,13 +338,10 @@ localPlayer.Idled:Connect(function()
 end)
 
 --- THIẾT KẾ GIAO DIỆN UI ---
-
 local MainTab = Window:Tab({ Title = "Auto Farm", Icon = "rbxassetid://10841384961" })
 local PlayerTab = Window:Tab({ Title = "Player & Visuals", Icon = "rbxassetid://10841790671" })
 
 -- ================= TAB AUTO FARM =================
-
--- 1. BẢNG THỐNG KÊ
 local StatsContainer = MainTab:Section({ Title = "📊 Bảng Thống Kê Tài Khoản", Text = "Cập nhật dữ liệu thời gian thực" })
 local playerStat = StatsContainer:Button({ Title = "Tên Người Chơi: " .. localPlayer.Name, Desc = "Tài khoản đang chạy script" })
 local runtimeStat = StatsContainer:Button({ Title = "Thời Gian Treo Hub: 00:00:00", Desc = "Tổng thời gian script hoạt động" })
@@ -348,12 +359,11 @@ task.spawn(function()
     end
 end)
 
--- 2. TÍNH NĂNG TỰ ĐỘNG NÂNG CẤP & REBIRTH
 local RebirthContainer = MainTab:Section({ Title = "🔄 Tự Động Nâng Cấp & Tái Sinh", Text = "Hỗ trợ các tính năng tự động vòng lặp" })
 
 RebirthContainer:Toggle({
-    Title = "Bật Auto Rebirth",
-    Description = "Tự động Rebirth bỏ qua lỗi kẹt UI bằng cơ chế gọi API",
+    Title = "Bật Auto Rebirth v2.7 (Đã Fix)",
+    Description = "Cơ chế quét kép: Gọi sự kiện ẩn + Giả lập Click nút giao diện tự động loại bỏ lỗi kẹt",
     Default = false,
     Callback = function(state)
         isAutoRebirthEnabled = state
@@ -362,7 +372,7 @@ RebirthContainer:Toggle({
 })
 
 RebirthContainer:Toggle({
-    Title = "Bật Auto Boost Upgrade (Mới)",
+    Title = "Bật Auto Boost Upgrade",
     Description = "Tự động kiểm tra số Win và Teleport thẳng đến đúng bục mua từ Giày 1 -> Giày 12 sau đó tiếp tục farm",
     Default = false,
     Callback = function(state)
@@ -371,7 +381,6 @@ RebirthContainer:Toggle({
     end
 })
 
--- 3. CÁC TÍNH NĂNG TELEPORT & FLY
 local WinContainer = MainTab:Section({ Title = "⚡ Auto Win Tele", Text = "Tối ưu hóa tốc độ nhận cúp cực hạn" })
 
 WinContainer:Dropdown({
@@ -381,7 +390,6 @@ WinContainer:Dropdown({
     Value = "1k Win",
     Callback = function(currentOption) 
         selectedWinDest = currentOption 
-        sendCustomNotification("Mục tiêu Tele: " .. currentOption)
     end
 })
 
@@ -409,7 +417,6 @@ LVContainer:Dropdown({
     Value = "1k Win",
     Callback = function(currentOption) 
         selectedLVDest = currentOption 
-        sendCustomNotification("Mục tiêu Bay: " .. currentOption)
     end
 })
 
@@ -429,7 +436,6 @@ LVContainer:Toggle({
 })
 
 -- ================= TAB PLAYER & VISUALS =================
-
 local ExploitContainer = PlayerTab:Section({ Title = "👑 Tính Năng Gian Lận VIP", Text = "Can thiệp sâu vào cơ chế vật lý nhân vật" })
 
 ExploitContainer:Toggle({
@@ -438,7 +444,6 @@ ExploitContainer:Toggle({
     Default = false,
     Callback = function(state)
         isNoclipEnabled = state
-        sendCustomNotification(state and "Noclip: Đã kích hoạt 🟢" or "Noclip: Đã tắt 🔴")
     end
 })
 
@@ -448,7 +453,6 @@ ExploitContainer:Toggle({
     Default = false,
     Callback = function(state)
         isInfJumpEnabled = state
-        sendCustomNotification(state and "Nhảy Vô Hạn: Đã bật 🟢" or "Nhảy Vô Hạn: Đã tắt 🔴")
     end
 })
 
@@ -464,26 +468,12 @@ UtilsContainer:Slider({
     end
 })
 
-UtilsContainer:Slider({
-    Title = "Độ cao nhảy (JumpPower)",
-    Value = { Min = 50, Max = 300, Default = 50 },
-    Callback = function(value)
-        local character = localPlayer.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        if humanoid then 
-            humanoid.UseJumpPower = true
-            humanoid.JumpPower = value 
-        end
-    end
-})
-
 UtilsContainer:Toggle({
     Title = "Auto Spam Nhảy",
     Description = "Tự động nhảy liên tục tránh kẹt địa hình",
     Default = false,
     Callback = function(state)
         isAutoJumpEnabled = state
-        sendCustomNotification(state and "Spam Nhảy: Đã bật 🟢" or "Spam Nhảy: Đã tắt 🔴")
     end
 })
 
@@ -516,7 +506,7 @@ GraphicContainer:Toggle({
             else
                 if obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("UnionOperation") then
                     obj.Material = Enum.Material.Plastic
-              elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
                     obj.Enabled = true
                 end
             end
@@ -540,32 +530,7 @@ ServerContainer:Button({
     Title = "Rejoin Server (Vào Lại)",
     Description = "Rời game và tự động kết nối lại chính máy chủ này",
     Callback = function()
-        sendCustomNotification("Đang kết nối lại server... 🔄")
-        task.wait(0.5)
         TeleportService:Teleport(game.PlaceId, localPlayer)
-    end
-})
-
-ServerContainer:Button({
-    Title = "Server Hop (Đổi Phòng)",
-    Description = "Tự động tìm kiếm và nhảy sang một server ngẫu nhiên khác",
-    Callback = function()
-        sendCustomNotification("Đang tìm kiếm server mới... 🚀")
-        task.spawn(function()
-            local success, servers = pcall(function()
-                return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
-            end)
-            if success and servers and servers.data then
-                for _, server in pairs(servers.data) do
-                    if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                        TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, localPlayer)
-                        break
-                    end
-                end
-            else
-                sendCustomNotification("Không tìm thấy server phù hợp! ❌")
-            end
-        end)
     end
 })
 
