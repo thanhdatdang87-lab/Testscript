@@ -386,8 +386,8 @@ local WinContainer = MainTab:Section({ Title = "⚡ Auto Win Tele", Text = "Tố
 WinContainer:Dropdown({
     Title = "Chọn Điểm Đến Tele",
     Description = "Mốc Win muốn Dịch Chuyển tới để lấy Cúp",
-    Values = {"1k Win", "2k Win", "3k5 Win"},
-    Value = "1k Win",
+    Values = {"2k Win", "3k Win", "5k Win"},
+    Value = "2k Win",
     Callback = function(currentOption) 
         selectedWinDest = currentOption 
     end
