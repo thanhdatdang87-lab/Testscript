@@ -90,11 +90,11 @@ end
 local Locations = {
     ["2k Win"] = CFrame.new(10025.16, 112.96, -772.2, 1, -0.02, 0.08, 0, 0.98, 0.2, -0.08, -0.2, 0.98),
     ["3k Win"] = CFrame.new(13310.54, 114.86, -770.52, 0.99, -0.02, 0.11, 0, 0.98, 0.21, -0.11, -0.2, 0.97),
-    ["5k Win"] = CFrame.new(21161.54, 106.83, -773.44, 0.65, -0.34, 0.68, 0, 0.89, 0.45, -0.76, -0.29, 0.58)
+    ["5k Win"] = CFrame.new(21161.54, 110.83, -773.44)
 }
 local LV_Start_CFrame = CFrame.new(835.49, 171.20, -723.57)
 
--- TOẠ ĐỘ CHÍNH XÁC 12 ĐÔI GIÀY BỒ CUNG CẤP
+-- TOẠ ĐỘ CHÍNH XÁC 12 ĐÔI GIÀY
 local ShoeLocations = {
     {Price = 15000, CFrame = CFrame.new(806.71, 69.29, -646.13, 1, 0, -0.04, 0, 1, 0, 0.04, 0, 1), Name = "Giày 12"},
     {Price = 8000,  CFrame = CFrame.new(817.71, 69.29, -646.4, 1, 0, -0.06, 0, 1, 0, 0.06, 0, 1),  Name = "Giày 11"},
@@ -144,19 +144,56 @@ local function getValidRoot()
     return character:FindFirstChild("HumanoidRootPart")
 end
 
+-- 🔥 NÂNG CẤP HÀM FLYTO: CHỐNG TRỌNG LỰC KÉO XUỐNG VÀ FIX LASER 🔥
 local function flyTo(targetCFrame, currentSpeed, checkFlag)
     local rootPart = getValidRoot()
     if not rootPart then return end
-    while checkFlag() and not isBuyingProcess and rootPart and rootPart.Parent and (rootPart.Position - targetCFrame.Position).Magnitude > 2 do
+    
+    local character = localPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    
+    -- Tạo một lực đẩy Vector chống lại hoàn toàn trọng lực của game lên RootPart
+    local bodyVelocity = rootPart:FindFirstChild("THG2_AntiGravity")
+    if not bodyVelocity then
+        bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Name = "THG2_AntiGravity"
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Parent = rootPart
+    end
+
+    local targetPos = targetCFrame.Position
+    while checkFlag() and not isBuyingProcess and rootPart and rootPart.Parent and (rootPart.Position - targetPos).Magnitude > 3 do
         rootPart = getValidRoot()
         if not rootPart then break end
+        
+        -- Khóa trạng thái Humanoid không cho tự rơi tự do xuống đất
+        if humanoid then 
+            humanoid:ChangeState(Enum.HumanoidStateType.Physics) 
+        end
+        
         rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         local speed = currentSpeed()
         if speed <= 0 then speed = 1 end
+        
         local deltaTime = RunService.Heartbeat:Wait()
-        local distance = (rootPart.Position - targetCFrame.Position).Magnitude
+        local distance = (rootPart.Position - targetPos).Magnitude
         local alpha = math.min((speed * deltaTime) / distance, 1)
-        rootPart.CFrame = rootPart.CFrame:Lerp(targetCFrame, alpha)
+        
+        -- Bay thẳng tắp ổn định cao độ trục Y
+        rootPart.CFrame = CFrame.new(rootPart.Position:Lerp(targetPos, alpha)) * (rootPart.CFrame - rootPart.Position)
+    end
+    
+    -- Dọn dẹp lực đẩy khi đã bay đến đích thành công
+    if bodyVelocity and bodyVelocity.Parent then 
+        bodyVelocity:Destroy() 
+    end
+    if humanoid then 
+        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp) 
+    end
+    
+    if checkFlag() and not isBuyingProcess and rootPart then
+        rootPart.CFrame = targetCFrame
     end
 end
 
@@ -168,7 +205,7 @@ task.spawn(function()
             local rootPart = getValidRoot()
             if targetCFrame and rootPart then
                 rootPart.CFrame = targetCFrame
-                task.wait(2)
+                task.wait(1.5)
             else
                 task.wait(0.5)
             end
@@ -186,6 +223,7 @@ task.spawn(function()
             if targetCFrame and getValidRoot() then
                 flyTo(LV_Start_CFrame, function() return flySpeedLV end, function() return isFlyingLV and not isBuyingProcess end)
                 if not isFlyingLV or isBuyingProcess or not getValidRoot() then task.wait(0.5) continue end
+                
                 flyTo(targetCFrame, function() return flySpeedLV end, function() return isFlyingLV and not isBuyingProcess end)
                 if not isFlyingLV or isBuyingProcess then continue end
                 task.wait(2)
@@ -193,6 +231,13 @@ task.spawn(function()
                 task.wait(0.5)
             end
         else
+            -- Dọn dẹp an toàn nếu người chơi bấm tắt Auto Fly giữa chừng
+            pcall(function()
+                local rootPart = getValidRoot()
+                if rootPart and rootPart:FindFirstChild("THG2_AntiGravity") then
+                    rootPart["THG2_AntiGravity"]:Destroy()
+                end
+            end)
             task.wait(0.3)
         end
     end
@@ -244,16 +289,14 @@ task.spawn(function()
     end
 end)
 
--- ================= CƠ CHẾ AUTO REBIRTH V2.7 SIÊU CẤP (ĐÃ FIX) =================
+-- ================= CƠ CHẾ AUTO REBIRTH V2.7 SIÊU CẤP =================
 task.spawn(function()
     while true do
         if isAutoRebirthEnabled then
             pcall(function()
-                -- 1. Quét sâu hệ thống truyền tin của Game (Bao gồm cả RemoteFunction)
                 for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
                     if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
                         local nameLower = string.lower(obj.Name)
-                        -- Thêm từ khóa quét mở rộng để bao quát tất cả cách đặt tên của Dev game
                         if string.find(nameLower, "rebirth") or string.find(nameLower, "taisinh") or string.find(nameLower, "rbt") or string.find(nameLower, "addrebirth") then
                             if obj:IsA("RemoteEvent") then
                                 obj:FireServer()
@@ -264,7 +307,6 @@ task.spawn(function()
                     end
                 end
 
-                -- 2. Quét giao diện (UI) và tự động kích hoạt Click giả lập nếu game đổi tên file ẩn
                 local playerGui = localPlayer:FindFirstChildOfClass("PlayerGui")
                 if playerGui then
                     for _, btn in pairs(playerGui:GetDescendants()) do
@@ -272,16 +314,13 @@ task.spawn(function()
                             local textLower = btn:IsA("TextButton") and string.lower(btn.Text) or ""
                             local nameLower = string.lower(btn.Name)
                             
-                            -- Kiểm tra nếu nút chứa text hoặc tên liên quan đến Tái Sinh
                             if string.find(textLower, "tái sinh") or string.find(textLower, "rebirth") or string.find(nameLower, "rebirth") or string.find(nameLower, "taisinh") then
-                                -- Bỏ qua các nút hủy lệnh
                                 if not string.find(textLower, "bỏ qua") and not string.find(textLower, "close") and not string.find(textLower, "hủy") then
                                     if btn.MouseButton1Click then
                                         for _, connection in pairs(getconnections(btn.MouseButton1Click)) do 
                                             connection:Fire() 
                                         end
                                     end
-                                    -- Click trực tiếp bằng hàm nội bộ của GuiObject nếu có hỗ trợ
                                     if btn.SimulateClick then btn:SimulateClick() end
                                 end
                             end
@@ -289,14 +328,14 @@ task.spawn(function()
                     end
                 end
             end)
-            task.wait(0.5) -- Tăng tốc độ kiểm tra vòng lặp lên 0.5s để Rebirth nhanh nhất có thể
+            task.wait(0.5)
         else
             task.wait(0.5)
         end
     end
 end)
 
--- Xử lý Noclip (Xuyên tường)
+-- Xử lý Noclip
 RunService.Stepped:Connect(function()
     if isNoclipEnabled and localPlayer.Character then
         for _, part in pairs(localPlayer.Character:GetDescendants()) do
@@ -305,7 +344,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Xử lý Infinite Jump (Nhảy vô hạn)
+-- Xử lý Infinite Jump
 UserInputService.JumpRequest:Connect(function()
     if isInfJumpEnabled then
         local character = localPlayer.Character
@@ -413,7 +452,7 @@ local LVContainer = MainTab:Section({ Title = "⭐ Auto Farm LV", Text = "Bay an
 LVContainer:Dropdown({
     Title = "Chọn Điểm Đến Bay",
     Description = "Mốc Level muốn cày",
-    Values = {"2k Win", "3k Win", "5 Win"},
+    Values = {"2k Win", "3k Win", "5k Win"},
     Value = "2k Win",
     Callback = function(currentOption) 
         selectedLVDest = currentOption 
@@ -473,7 +512,7 @@ UtilsContainer:Toggle({
     Description = "Tự động nhảy liên tục tránh kẹt địa hình",
     Default = false,
     Callback = function(state)
-        isAutoJumpEnabled = state
+          isAutoJumpEnabled = state
     end
 })
 
