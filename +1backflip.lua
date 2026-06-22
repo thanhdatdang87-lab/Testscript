@@ -4,8 +4,8 @@ local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/rel
 -- Khởi tạo Window
 local Window = WindUI:CreateWindow({
     Title = "THG2 Hub",
-    Subtitle = "Đang tải dữ liệu.....",
-    Author = "+1 Black Flip Obby",
+    Subtitle = "Đang tải dữ liệu....",
+    Author = "+1 BackFlip Obby",
     Folder = "THG2HubConfig"
 })
 
@@ -88,9 +88,9 @@ end
 
 -- Tọa độ các mốc nông trại game
 local Locations = {
-    ["1k Win"] = CFrame.new(7441.05, 90, -770.35),
-    ["2k Win"] = CFrame.new(10019.54, 90, -770.37),
-    ["3k5 Win"] = CFrame.new(13310.34, 90, -715.10)
+    ["2k Win"] = CFrame.new(10025.16, 112.96, -772.2, 1, -0.02, 0.08, 0, 0.98, 0.2, -0.08, -0.2, 0.98)
+    ["3k Win"] = CFrame.new(13310.54, 114.86, -770.52, 0.99, -0.02, 0.11, 0, 0.98, 0.21, -0.11, -0.2, 0.97)
+    ["5k Win"] = CFrame.new(21161.54, 106.83, -773.44, 0.65, -0.34, 0.68, 0, 0.89, 0.45, -0.76, -0.29, 0.58)
 }
 local LV_Start_CFrame = CFrame.new(835.49, 171.20, -723.57)
 
@@ -111,8 +111,8 @@ local ShoeLocations = {
 }
 
 -- Biến trạng thái hoạt động
-local selectedWinDest = "1k Win"
-local selectedLVDest = "1k Win"
+local selectedWinDest = "2k Win"
+local selectedLVDest = "2k Win"
 local isTeleportingWin = false
 local isFlyingLV = false
 local flySpeedLV = 273
@@ -168,7 +168,7 @@ task.spawn(function()
             local rootPart = getValidRoot()
             if targetCFrame and rootPart then
                 rootPart.CFrame = targetCFrame
-                task.wait(1)
+                task.wait(2)
             else
                 task.wait(0.5)
             end
@@ -413,8 +413,8 @@ local LVContainer = MainTab:Section({ Title = "⭐ Auto Farm LV", Text = "Bay an
 LVContainer:Dropdown({
     Title = "Chọn Điểm Đến Bay",
     Description = "Mốc Level muốn cày",
-    Values = {"1k Win", "2k Win", "3k5 Win"},
-    Value = "1k Win",
+    Values = {"2k Win", "3k Win", "5 Win"},
+    Value = "2k Win",
     Callback = function(currentOption) 
         selectedLVDest = currentOption 
     end
