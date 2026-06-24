@@ -8,17 +8,15 @@ do
     
     function warn(...)
         local text = table.concat({...}, " ")
-        -- Bỏ qua những thông báo từ TeleportUI, Marketplace...
         if text:find("TeleportUI") or 
            text:find("MarketplaceController") or 
            text:find("Marketplace") or 
            text:find("InfoType.Product") then
-            return -- Đừng in ra console
+            return 
         end
         originalWarn(...)
     end
     
-    -- Cũng bypass lỗi nếu có
     function error(msg, level)
         if type(msg) == "string" then
             if msg:find("TeleportUI") or 
@@ -121,7 +119,7 @@ end
 -- ================= BẢNG TOẠ ĐỘ CẤU HÌNH =================
 local FarmLocations = {
     ["160k Win"] = CFrame.new(-2985.21, 1307.09, 1005.97, 1, 0.09, -0.04, 0, 0.42, 0.91, 0.1, -0.9, 0.42),
-    ["60k Win"]  = CFrame.new(-1356.62, 1139.68, 988.45, 0, -0.08, 1, 0, 1, 0.08, -1, 0, 0)
+    ["100k Win"]  = CFrame.new(-1356.62, 1139.68, 988.45, 0, -0.08, 1, 0, 1, 0.08, -1, 0, 0)
 }
 
 local BoostLocations = {
@@ -153,8 +151,7 @@ local isAutoRebirthEnabled = false
 local isAutoUpgradeBoost = false
 
 -- Biến cấu hình Tab Visual
-local isInfJumpEnabled = false
-local isAutoJumpEnabled = false
+local isAutoJumpAndInfJumpEnabled = false -- 🛠️ BIẾN GỘP MỚI
 local isNoclipEnabled = false
 local isLagFixEnabled = false
 local tweenSpeed = 300 
@@ -171,6 +168,7 @@ local Lighting = game:GetService("Lighting")
 
 local stepConnection = nil
 local noclipConnection = nil
+local tweenConnection = nil 
 
 -- Hàm tiếp đất tức thì chống rơi chậm
 local function stopFlyingState(finalCFrame)
@@ -228,8 +226,10 @@ end
 
 -- Hàm thực hiện dịch chuyển tức thời (Teleport)
 local function teleportTo(cframe)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character:PivotTo(cframe)
+    local character = LocalPlayer.Character
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if rootPart and cframe then
+        rootPart.CFrame = cframe
     end
 end
 
@@ -256,52 +256,54 @@ task.spawn(function()
     end
 end)
 
--- ================= HỆ THỐNG AUTO TWEEN FARM =================
-task.spawn(function()
-    while true do
-        if isAutoTweenFarm then
-            pcall(function()
-                local character = LocalPlayer.Character
-                if character and character:FindFirstChild("HumanoidRootPart") then
-                    local targetCFrame = FarmLocations[selectedFarmLocation]
-                    if targetCFrame then
-                        local distance = (character.HumanoidRootPart.Position - targetCFrame.Position).Magnitude
-                        local tweenDuration = distance / tweenSpeed
-                        
-                        local tweenInfo = TweenInfo.new(
-                            tweenDuration,
-                            Enum.EasingStyle.Linear,
-                            Enum.EasingDirection.InOut
-                        )
-                        local tween = TweenService:Create(character.HumanoidRootPart, tweenInfo, {CFrame = targetCFrame})
-                        
-                        startLockMechanism()
-                        tween:Play()
-                        
-                        tween.Completed:Connect(function()
-                            if isAutoTweenFarm then
-                                stopFlyingState(targetCFrame)
-                            end
-                        end)
-                    end
-                end
-            end)
-        end
-        task.wait(0.5)
-    end
-end)
+-- ================= HỆ THỐNG AUTO TWEEN FARM ĐỔI TỐC ĐỘ REAL-TIME GIỮA ĐƯỜNG =================
+local function startTweenFarmMechanism()
+    if tweenConnection then tweenConnection:Disconnect() end
+    startLockMechanism()
 
--- ================= HỆ THỐNG AUTO TELEPORT =================
+    tweenConnection = RunService.Heartbeat:Connect(function(deltaTime)
+        if not isAutoTweenFarm then
+            if tweenConnection then tweenConnection:Disconnect() tweenConnection = nil end
+            return
+        end
+
+        pcall(function()
+            local character = LocalPlayer.Character
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+            local targetCFrame = FarmLocations[selectedFarmLocation]
+
+            if rootPart and targetCFrame then
+                local currentPos = rootPart.Position
+                local targetPos = targetCFrame.Position
+                local distance = (targetPos - currentPos).Magnitude
+
+                if distance > 4 then
+                    local direction = (targetPos - currentPos).Unit
+                    rootPart.CFrame = CFrame.new(currentPos + direction * (tweenSpeed * deltaTime))
+                else
+                    stopFlyingState(targetCFrame)
+                    task.wait(0.5) 
+                end
+            end
+        end)
+    end)
+end
+
+-- ================= HỆ THỐNG AUTO TELEPORT CHỐNG TELEPORT 2 LẦN =================
 task.spawn(function()
     while true do
         if isAutoTeleporting then
-            pcall(function()
-                if FarmLocations[selectedLocation] then
-                    teleportTo(FarmLocations[selectedLocation])
+            local success = pcall(function()
+                local targetCFrame = FarmLocations[selectedLocation]
+                if targetCFrame then
+                    teleportTo(targetCFrame)
+                    task.wait(1.5) 
                 end
             end)
+            if not success then task.wait(0.5) end
+        else
+            task.wait(0.5) 
         end
-        task.wait(1)
     end
 end)
 
@@ -342,29 +344,44 @@ local function startNoclipMechanism()
     end)
 end
 
--- ================= HỆ THỐNG LAG FIX =================
+-- ================= 🛠️ FIX: HỆ THỐNG SIÊU KHỬ LAG SÂU + TẮT TRAIT AURA EFFECT NÂNG CẤP TỐI ĐA =================
 local function applyDeepLagFix(enabled)
     isLagFixEnabled = enabled
     if enabled then
         pcall(function()
+            -- 1. Triệt tiêu các hiệu ứng ánh sáng môi trường nặng nề
             Lighting.Brightness = 1
             Lighting.ClockTime = 14
-            Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+            Lighting.Ambient = Color3.fromRGB(140, 140, 140)
+            Lighting.GlobalShadows = false -- Tắt đổ bóng toàn map
             
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("BasePart") then
-                    obj.Material = Enum.Material.SmoothPlastic
-                end
-                if obj:IsA("UnionOperation") or obj:IsA("PartOperation") then
-                    obj:Destroy()
+            for _, effect in pairs(Lighting:GetChildren()) do
+                if effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") then
+                    effect.Enabled = false
                 end
             end
             
-            game:GetService("Debris"):AddItem(workspace, math.huge)
+            -- 2. Quét toàn bộ Map: Hạ cấu trúc texture về mượt phẳng, gỡ sạch Aura/Effect nặng
+            for _, obj in pairs(workspace:GetDescendants()) do
+                -- Giảm kết cấu vật liệu vật thể xuống SmoothPlastic để tăng FPS nhưng giữ cấu trúc block để nhìn rõ map
+                if obj:IsA("BasePart") and not obj:IsA("MeshPart") then
+                    obj.Material = Enum.Material.SmoothPlastic
+                end
+                
+                -- Tắt toàn bộ Trait Aura, Particle, hiệu ứng lấp lánh gây lag đứng hình
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                    obj.Enabled = false
+                end
+                
+                -- Ẩn các mảng Decal/Texture trang trí rườm rà không quan trọng
+                if obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = 1
+                end
+            end
         end)
-        sendCustomNotification("Khử Lag Sâu: Đã kích hoạt 🟢")
+        sendCustomNotification("Khử Lag Tối Đa & Gỡ Aura: Kích hoạt 🟢")
     else
-        sendCustomNotification("Khử Lag Sâu: Đã tắt 🔴")
+        sendCustomNotification("Vui lòng vào lại Server để hoàn tác đồ họa ban đầu! 🔴")
     end
 end
 
@@ -389,33 +406,25 @@ local function hopToEmptyServer()
     end)
 end
 
--- ================= HỆ THỐNG INFINITE JUMP =================
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.Space then
-        if isInfJumpEnabled or isAutoJumpEnabled then
-            local character = LocalPlayer.Character
-            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end
-end)
-
--- ================= AUTO JUMP LOOP =================
+-- ================= 🛠️ FIX: VÒNG LẶP GỘP AUTO JUMP & INF JUMP BAY TRÊN KHÔNG TRUNG LÊN TỤC =================
 task.spawn(function()
     while true do
-        if isAutoJumpEnabled then
+        if isAutoJumpAndInfJumpEnabled then
             pcall(function()
                 local character = LocalPlayer.Character
                 local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-                if humanoid then
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                
+                if humanoid and rootPart then
+                    -- Liên tục reset trạng thái nhảy và đẩy vận tốc nhân vật hướng lên trời không dừng lại
                     humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    rootPart.AssemblyLinearVelocity = Vector3.new(rootPart.AssemblyLinearVelocity.X, humanoid.JumpPower, rootPart.AssemblyLinearVelocity.Z)
                 end
             end)
+            task.wait(0.04) -- Spam vận tốc nhảy cực nhanh để đứng yên hoặc bay vút lên không trung mượt mà
+        else
+            task.wait(0.5)
         end
-        task.wait(0.3)
     end
 end)
 
@@ -472,7 +481,11 @@ BoostContainer:Toggle({
     Callback = function(state)
         isAutoUpgradeBoost = state
         if state then
-            if isAutoTweenFarm then isAutoTweenFarm = false end
+            if isAutoTweenFarm then 
+                isAutoTweenFarm = false 
+                if tweenConnection then tweenConnection:Disconnect() tweenConnection = nil end
+                stopFlyingState(nil)
+            end
             if isAutoTeleporting then isAutoTeleporting = false end
             sendCustomNotification("Auto Mua Giày [" .. selectedBoost .. "]: Đang hoạt động 🟢")
         else
@@ -484,13 +497,13 @@ BoostContainer:Toggle({
 -- SECTION 3: AUTO TELEPORT
 local TeleContainer = MainTab:Section({ 
     Title = "⚡ Auto Win Teleport", 
-    Text = "Dịch chuyển tức thời liên tục sau mỗi giây" 
+    Text = "Dịch chuyển tức thời liên tục" 
 })
 
 TeleContainer:Dropdown({
     Title = "Chọn Vị Trí Muốn Đến",
     Description = "Lựa chọn mốc tọa độ để chuẩn bị dịch chuyển",
-    Values = {"160k Win", "60k Win"},
+    Values = {"160k Win", "100k Win"},
     Value = "160k Win",
     Callback = function(currentOption) 
         selectedLocation = currentOption 
@@ -505,8 +518,12 @@ TeleContainer:Toggle({
     Callback = function(state)
         isAutoTeleporting = state
         if state then 
-            if isAutoTweenFarm then isAutoTweenFarm = false end 
-            if isAutoUpgradeBoost then isAutoUpgradeBoost = false end
+            if isAutoTweenFarm then 
+                isAutoTweenFarm = false 
+                if tweenConnection then tweenConnection:Disconnect() tweenConnection = nil end
+                stopFlyingState(nil)
+            end 
+      if isAutoUpgradeBoost then isAutoUpgradeBoost = false end
             sendCustomNotification("Auto Teleport [" .. selectedLocation .. "]: Đã bật 🟢")
         else
             sendCustomNotification("Auto Teleport: Đã tắt 🔴")
@@ -533,7 +550,7 @@ TweenContainer:Slider({
 TweenContainer:Dropdown({
     Title = "Chọn Mốc Muốn Farm",
     Description = "Lựa chọn mốc đích để nhân vật Tween thẳng tới",
-    Values = {"160k Win", "60k Win"},
+    Values = {"160k Win", "100k Win"},
     Value = "160k Win",
     Callback = function(currentOption)
         selectedFarmLocation = currentOption
@@ -550,8 +567,10 @@ TweenContainer:Toggle({
         if state then
             if isAutoTeleporting then isAutoTeleporting = false end 
             if isAutoUpgradeBoost then isAutoUpgradeBoost = false end
+            startTweenFarmMechanism()
             sendCustomNotification("Auto Tween Farm: Bắt đầu bay thẳng! 🟢")
         else
+            if tweenConnection then tweenConnection:Disconnect() tweenConnection = nil end
             if stepConnection then stepConnection:Disconnect() stepConnection = nil end
             stopFlyingState(nil)
             sendCustomNotification("Auto Tween Farm: Đã dừng bay thẳng! 🔴")
@@ -608,27 +627,18 @@ ServerSection:Button({
 
 -- SECTION 3: DI CHUYỂN & NHẢY (MOVEMENT)
 local MoveSection = VisualTab:Section({
-    Title = "🧩Hỗ trợ",
+    Title = "🧩 Hỗ trợ di chuyển",
     Text = "Hỗ trợ di chuyển xuyên thấu và các cơ chế nhảy linh hoạt"
 })
 
+-- 🛠️ NÚT GỘP TÍNH NĂNG HOÀN CHỈNH THEO YÊU CẦU MỚI
 MoveSection:Toggle({
-    Title = "Infinite Jump (Nhảy vô hạn)",
-    Description = "Nhấn phím Space để nhảy liên hồi giữa không trung không giới hạn",
+    Title = "Auto jump & Inf jump",
+    Description = "Kích hoạt nút này để nhân vật tự động spam nhảy liên tục trên không trung vĩnh viễn!",
     Default = false,
     Callback = function(state)
-        isInfJumpEnabled = state
-        sendCustomNotification(state and "Infinite Jump: Đã bật 🟢" or "Infinite Jump: Đã tắt 🔴")
-    end
-})
-
-MoveSection:Toggle({
-    Title = "Auto Jump (Tự Động Nhảy)",
-    Description = "Tự động kích hoạt hành động nhảy liên hồi kể cả khi không bật Inf Jump!",
-    Default = false,
-    Callback = function(state)
-        isAutoJumpEnabled = state
-        sendCustomNotification(state and "Auto Jump: Đã bật 🟢" or "Auto Jump: Đã tắt 🔴")
+        isAutoJumpAndInfJumpEnabled = state
+        sendCustomNotification(state and "Auto Jump & Inf Jump: Đã kích hoạt bay! 🟢" or "Auto Jump & Inf Jump: Đã dừng bay! 🔴")
     end
 })
 
@@ -650,12 +660,12 @@ MoveSection:Toggle({
 -- SECTION 4: SIÊU KHỬ LAG SÂU (GIỮ MAP)
 local LagSection = VisualTab:Section({
     Title = "Fix lag ⚙️",
-    Text = "Giảm tải đồ họa xuống mức tối giản tuyệt đối nhưng bảo toàn kết cấu Map"
+    Text = "Giảm tải đồ họa xuống mức tối giản tuyệt đối nhưng bảo toàn kết cấu phòng tránh hiểm họa"
 })
 
 LagSection:Toggle({
-    Title = "Kích Hoạt Siêu Khử Lag Sâu",
-    Description = "Hạ chất lượng Render, gỡ đổ bóng Lighting, làm sạch Texture giúp tăng 80-90% FPS",
+    Title = "Kích Hoạt Siêu Khử Lag Sâu + Xóa Aura Effect",
+    Description = "Xóa sạch toàn bộ hiệu ứng Trait Aura, Particle, khói lửa, làm phẳng Map bảo toàn block dễ nhìn map né quái!",
     Default = false,
     Callback = function(state)
         applyDeepLagFix(state)
@@ -666,4 +676,4 @@ LagSection:Toggle({
 -- Mở mặc định Tab Main khi khởi chạy
 MainTab:Select()
 Window:SetSubtitle("Tốc độ Tween hiện tại: 300 Studs/s ⚡")
-sendCustomNotification("✅ Script THG2 Hub đã tải xong!")
+sendCustomNotification("✅ THG2 Hub: Đã gộp nút Nhảy & Nâng cấp Khử Lag!")
