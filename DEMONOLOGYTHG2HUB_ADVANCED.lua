@@ -3072,18 +3072,10 @@ if (GameState == "MainGame") then
             if item:IsA("Model") then
                 primaryPart = item.PrimaryPart
                 if not primaryPart then
-                    for _, child in pairs(item:FindFirstChildWhichIsA("BasePart") or {}) do
-                        if child:IsA("BasePart") then
-                            primaryPart = child
+                    for _, desc in pairs(item:GetDescendants()) do
+                        if desc:IsA("BasePart") then
+                            primaryPart = desc
                             break
-                        end
-                    end
-                    if not primaryPart then
-                        for _, desc in pairs(item:GetDescendants()) do
-                            if desc:IsA("BasePart") then
-                                primaryPart = desc
-                                break
-                            end
                         end
                     end
                 end
@@ -3120,6 +3112,8 @@ if (GameState == "MainGame") then
             -- Try teleport với different heights nếu stuck
             local teleported = false
             for heightTry = 1, 3 do
+                if teleported then break end
+                
                 local tryHeight = heightTry * 1.5
                 local targetPos = myPos + Vector3.new(offsetX, tryHeight, offsetZ)
                 
@@ -3134,11 +3128,13 @@ if (GameState == "MainGame") then
                 end
                 
                 -- Teleport
-                if item:IsA("Model") and item.PrimaryPart then
-                    item:PivotTo(CFrame.new(targetPos))
-                else
-                    primaryPart.CFrame = CFrame.new(targetPos)
-                end
+                pcall(function()
+                    if item:IsA("Model") and item.PrimaryPart then
+                        item:PivotTo(CFrame.new(targetPos))
+                    else
+                        primaryPart.CFrame = CFrame.new(targetPos)
+                    end
+                end)
                 
                 -- Reset physics immediately
                 task.wait(0.01)
@@ -3155,15 +3151,12 @@ if (GameState == "MainGame") then
                     Vector3.new(0, -0.5, 0)
                 )
                 
-                if checkRay and checkRay.Distance < 0.2 then
-                    -- Still stuck, try lại
-                    goto try_next_height
-                else
+                if not checkRay or checkRay.Distance >= 0.2 then
+                    -- Not stuck, good!
                     teleported = true
-                    break
+                else
+                    -- Still stuck, try next height
                 end
-                
-                ::try_next_height::
             end
             
             if teleported then
