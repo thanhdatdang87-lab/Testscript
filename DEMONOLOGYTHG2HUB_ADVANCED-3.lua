@@ -3058,8 +3058,92 @@ if (GameState == "MainGame") then
     CreateSectionTitle("Items", UI["SCF"], 15)
     local instance_tele_items = CreateButton("Tele All Items To Me", UI["SCF"], 16, 150)
     
-    -- 🔧 DEBUG: List all items
-    local debug_list_items = CreateButton("Debug: List All Items", UI["SCF"], 17, 150)
+    -- 🔥 AUTO FARM: Tele + Pickup + Drop + Repeat
+    local auto_farm_button = CreateButton("Auto Farm (Test)", UI["SCF"], 18, 150)
+    auto_farm_button['Activated']:Connect(function()
+        if not HumanoidRootPart or not child_21 then return end
+        
+        local startPos = HumanoidRootPart.Position
+        local farmCount = 0
+        local isFarming = true
+        
+        CreateKeybind("⏳ Auto Farm started...", 2)
+        
+        -- Loop lặp lại
+        while isFarming and farmCount < 100 do  -- Max 100 vòng
+            -- STEP 1: Tele player đến items
+            for _, item in pairs(child_21:GetChildren()) do
+                if not isFarming then break end
+                
+                local primaryPart = nil
+                if item:IsA("Model") then
+                    primaryPart = item.PrimaryPart
+                    if not primaryPart then
+                        for _, desc in pairs(item:GetDescendants()) do
+                            if desc:IsA("BasePart") then
+                                primaryPart = desc
+                                break
+                            end
+                        end
+                    end
+                end
+                
+                if primaryPart then
+                    -- Tele player tới item
+                    HumanoidRootPart.CFrame = primaryPart.CFrame + Vector3.new(0, 3, 0)
+                    task.wait(0.2)
+                    
+                    -- STEP 2: Spam E (pickup) 
+                    for i = 1, 10 do
+                        if not isFarming then break end
+                        UserInputService:SendKeyEvent(true, Enum.KeyCode.E, false)
+                        task.wait(0.05)
+                        UserInputService:SendKeyEvent(false, Enum.KeyCode.E, false)
+                        task.wait(0.05)
+                    end
+                    
+                    -- STEP 3: Check backpack item count
+                    local itemCount = 0
+                    if LocalPlayer.Backpack then
+                        itemCount = #LocalPlayer.Backpack:GetChildren()
+                    elseif Character and Character:FindFirstChild("Backpack") then
+                        itemCount = #Character.Backpack:GetChildren()
+                    end
+                    
+                    -- Nếu đủ 3 items thì tele về + drop
+                    if itemCount >= 3 then
+                        CreateKeybind("📦 Have " .. itemCount .. " items, dropping...", 2)
+                        
+                        -- Tele về vị trí ban đầu
+                        HumanoidRootPart.CFrame = CFrame.new(startPos)
+                        task.wait(0.3)
+                        
+                        -- Drop items - xóa toàn bộ trong backpack
+                        local backpack = LocalPlayer.Backpack or (Character and Character:FindFirstChild("Backpack"))
+                        if backpack then
+                            for _, item_in_backpack in pairs(backpack:GetChildren()) do
+                                item_in_backpack:Destroy()
+                            end
+                        end
+                        
+                        farmCount = farmCount + 1
+                        CreateKeybind("✅ Cycle " .. farmCount .. " done!", 1)
+                        task.wait(0.5)
+                        
+                        -- Restart loop
+                        break
+                    end
+                    
+                    task.wait(0.2)
+                end
+            end
+        end
+        
+        -- Quay lại vị trí ban đầu
+        HumanoidRootPart.CFrame = CFrame.new(startPos)
+        CreateKeybind("🎉 Auto Farm done! " .. farmCount .. " cycles completed!", 3)
+        isFarming = false
+    end)
     debug_list_items['Activated']:Connect(function()
         if not child_21 then return end
         
