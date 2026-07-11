@@ -3686,7 +3686,7 @@ end
     
     HookRemoteCalls()
     
-    local antiKillToggle = CreateToggle("Anti Kill", UI["Visuals"], 6, 185, 85, _, 75, 100)
+    local antiKillToggle = CreateToggle("Anti Kill", UI["PlayerSettings"], 10, 185, 85, _, 75, 100)
     antiKillToggle['Activated']:Connect(function()
         antiKillActive = not antiKillActive
         if antiKillActive then
