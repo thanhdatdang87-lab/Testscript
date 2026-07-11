@@ -1756,77 +1756,7 @@ if (GameState == "MainGame") then
     local LowestTempRoom = nil
     local TemperatureLabel = CreateLog("Temperature: N/A", UI["GhostTabInfo1"], 1, 185, false, nil, false, false)
     
-    -- ===== ANTI KILL (PLAYER TAB) - HYBRID SOLUTION =====
-    local antiKillActive = false
-    
-    -- PART 1: Hook RemoteEvent/Function để block death events
-    local function HookRemoteCalls()
-        local success, mt = pcall(function()
-            return getrawmetatable(game:GetService("ReplicatedStorage"))
-        end)
-        
-        if success and mt then
-            local oldNamecall = mt.__namecall
-            mt.__namecall = function(self, ...)
-                local args = {...}
-                local method = args[#args]
-                
-                if antiKillActive then
-                    local remoteOrFunctionName = tostring(self)
-                    local deathKeywords = {"Dead", "Death", "Kill", "Jumpscare", "Down", "Die"}
-                    
-                    for _, keyword in ipairs(deathKeywords) do
-                        if string.find(remoteOrFunctionName, keyword, 1, true) then
-                            CreateKeybind("🛡️ Blocked: " .. remoteOrFunctionName, 1)
-                            return nil
-                        end
-                    end
-                end
-                
-                return oldNamecall(self, ...)
-            end
-        end
-    end
-    
-    -- PART 2: Humanoid keepalive loop (Fallback)
-    local function StartAntiKillLoop()
-        task.spawn(function()
-            while antiKillActive do
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    local humanoid = char.Humanoid
-                    
-                    -- Keep health at 100
-                    if humanoid.Health < 100 then
-                        humanoid.Health = 100
-                    end
-                    
-                    -- Disable Dead state
-                    pcall(function()
-                        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-                    end)
-                end
-                
-                task.wait(0.1)
-            end
-        end)
-    end
-    
-    -- Initialize hook
-    HookRemoteCalls()
-    
-    -- PART 3: Toggle UI (PLAYER Tab)
-    local antiKillToggle = CreateToggle("Anti Kill", UI["Visuals"], 1, 185, 85, _, 75, 100)
-    antiKillToggle['Activated']:Connect(function()
-        antiKillActive = not antiKillActive
-        if antiKillActive then
-            CreateKeybind("🛡️ Anti Kill: ON", 2)
-            StartAntiKillLoop()
-        else
-            CreateKeybind("❌ Anti Kill: OFF", 2)
-        end
-    end)
-    -- ===================================================
+    -- ===== EVIDENCE REQUIREMENTS TRACKER (THAY THẾ HUNT AI) =====
     local EvidenceLabel = CreateLog("Need: Waiting for evidence...", frame_9, 1, 170, false, nil, false, false)
     
     local function UpdateEvidenceSuggester()
@@ -3615,3 +3545,155 @@ if (GameState == "MainGame") then
         end)
     end)
 end
+
+    -- ===== EVIDENCE REQUIREMENTS TRACKER (GHOST TAB) =====
+    local EvidenceLabel = CreateLog("Need 2 evidence to suggest", frame_9, 10, 170, false, nil, false, false)
+    
+    local function UpdateEvidenceSuggester()
+        local ghostTypes = value_23 or {}
+        
+        local currentEvidence = {}
+        if tbl["EMF Level 5"] then table.insert(currentEvidence, "EMF Level 5") end
+        if tbl["Freezing Temperatures"] then table.insert(currentEvidence, "Freezing Temperatures") end
+        if tbl["Ghost Orb"] then table.insert(currentEvidence, "Ghost Orb") end
+        if tbl["Handprints"] then table.insert(currentEvidence, "Handprints") end
+        if tbl["Spirit Box"] then table.insert(currentEvidence, "Spirit Box") end
+        if tbl["Fingerprints"] then table.insert(currentEvidence, "Fingerprints") end
+        if tbl["Inscription"] then table.insert(currentEvidence, "Inscription") end
+        if tbl["Laser Projector"] then table.insert(currentEvidence, "Laser Projector") end
+        if tbl["Wither"] then table.insert(currentEvidence, "Wither") end
+        
+        local evidenceCount = #currentEvidence
+        
+        if evidenceCount < 2 then
+            EvidenceLabel['Text'] = "Need 2 evidence to suggest"
+            EvidenceLabel['TextColor3'] = Color3.fromRGB(255, 0, 0)
+        elseif evidenceCount == 2 then
+            local thirdEvidenceSet = {}
+            for ghostName, ghostEvs in pairs(ghostTypes) do
+                local matchCount = 0
+                local thirdEvidence = nil
+                for _, ghostEv in ipairs(ghostEvs) do
+                    local found = false
+                    for _, currentEv in ipairs(currentEvidence) do
+                        if currentEv == ghostEv then
+                            found = true
+                            matchCount = matchCount + 1
+                            break
+                        end
+                    end
+                    if not found then thirdEvidence = ghostEv end
+                end
+                if matchCount == 2 and thirdEvidence then
+                    local isInSet = false
+                    for _, ev in ipairs(thirdEvidenceSet) do
+                        if ev == thirdEvidence then isInSet = true break end
+                    end
+                    if not isInSet then table.insert(thirdEvidenceSet, thirdEvidence) end
+                end
+            end
+            if #thirdEvidenceSet > 0 then
+                local suggestionText = table.concat(thirdEvidenceSet, " / ")
+                EvidenceLabel['Text'] = "Need: " .. suggestionText
+                EvidenceLabel['TextColor3'] = Color3.fromRGB(255, 200, 0)
+            end
+        else
+            local evidenceDisplay = table.concat(currentEvidence, " + ")
+            EvidenceLabel['Text'] = "Have: " .. evidenceDisplay
+            EvidenceLabel['TextColor3'] = Color3.fromRGB(0, 255, 0)
+            
+            if evidenceCount == 3 then
+                task.spawn(function()
+                    task.wait(0.5)
+                    local ghostTypesNode = PlayerGui:FindFirstChild("Journal") and PlayerGui.Journal.Holder.Pages.Page4.Right.Page:FindFirstChild("GhostTypes")
+                    for ghostName, ghostEvs in pairs(ghostTypes) do
+                        if #ghostEvs == 3 then
+                            local matchCount = 0
+                            for _, ghostEv in ipairs(ghostEvs) do
+                                for _, currentEv in ipairs(currentEvidence) do
+                                    if ghostEv == currentEv then
+                                        matchCount = matchCount + 1
+                                        break
+                                    end
+                                end
+                            end
+                            if matchCount > 0 then
+                                pcall(function()
+                                    findAndFire(ghostTypesNode, ghostName, true)
+                                end)
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end
+    
+    task.spawn(function()
+        while true do
+            UpdateEvidenceSuggester()
+            task.wait(1)
+        end
+    end)
+    -- ====================================================
+    
+    -- ===== ANTI KILL (PLAYER TAB) - HYBRID SOLUTION =====
+    local antiKillActive = false
+    
+    local function HookRemoteCalls()
+        local success, mt = pcall(function()
+            return getrawmetatable(game:GetService("ReplicatedStorage"))
+        end)
+        
+        if success and mt then
+            local oldNamecall = mt.__namecall
+            mt.__namecall = function(self, ...)
+                local args = {...}
+                local method = args[#args]
+                
+                if antiKillActive then
+                    local remoteOrFunctionName = tostring(self)
+                    local deathKeywords = {"Dead", "Death", "Kill", "Jumpscare", "Down", "Die"}
+                    for _, keyword in ipairs(deathKeywords) do
+                        if string.find(remoteOrFunctionName, keyword, 1, true) then
+                            return nil
+                        end
+                    end
+                end
+                
+                return oldNamecall(self, ...)
+            end
+        end
+    end
+    
+    local function StartAntiKillLoop()
+        task.spawn(function()
+            while antiKillActive do
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("Humanoid") then
+                    local humanoid = char.Humanoid
+                    if humanoid.Health < 100 then
+                        humanoid.Health = 100
+                    end
+                    pcall(function()
+                        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+                    end)
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+    
+    HookRemoteCalls()
+    
+    local antiKillToggle = CreateToggle("Anti Kill", UI["Visuals"], 6, 185, 85, _, 75, 100)
+    antiKillToggle['Activated']:Connect(function()
+        antiKillActive = not antiKillActive
+        if antiKillActive then
+            CreateKeybind("🛡️ Anti Kill: ON", 2)
+            StartAntiKillLoop()
+        else
+            CreateKeybind("❌ Anti Kill: OFF", 2)
+        end
+    end)
+    -- ===================================================
