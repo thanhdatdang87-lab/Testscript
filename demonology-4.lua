@@ -2,6 +2,37 @@
 -- Guard: chỉ chạy 1 lần, tránh duplicate menu khi teleport
 if _G.__ESP_LOADED then return end
 _G.__ESP_LOADED = true
+
+-- ===== SANITY DISPLAY =====
+local PS = game:GetService("Players")
+local PlayerSanityFrame = nil
+local SanityTemplate = nil
+
+local function UpdatePlrEnergy()
+	if not PlayerSanityFrame or not SanityTemplate then return end
+	
+	for _, v in pairs(PlayerSanityFrame:GetChildren()) do
+		if v.Name ~= "SanityTemplate" then
+			v:Destroy()
+		end
+	end
+
+	for _, plr in pairs(PS:GetPlayers()) do
+		if plr:GetAttribute("Energy") ~= nil then
+			local Clone = SanityTemplate:Clone()
+			Clone.Name = "SanityLabel"
+			Clone.Parent = PlayerSanityFrame
+			Clone.Visible = true
+			if plr.Name == plr.DisplayName then
+				Clone.Text = plr.Name .. ": " .. tostring(math.floor(plr:GetAttribute("Energy"))) .. "%"
+			else
+				Clone.Text = plr.Name .. "(" .. plr.DisplayName .. "): " .. tostring(math.floor(plr:GetAttribute("Energy"))) .. "%"
+			end
+		end
+	end
+end
+-- ============================
+
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local LocalPlayer = Players['LocalPlayer']
@@ -1722,6 +1753,43 @@ if (GameState == "MainGame") then
             end)
         end
     end)
+    
+    -- ===== PLAYER SANITY DISPLAY =====
+    local sanityScrollFrame = Instance.new("ScrollingFrame")
+    sanityScrollFrame.Name = "SanityScroll"
+    sanityScrollFrame.Size = UDim2.new(1, -20, 0, 60)
+    sanityScrollFrame.Position = UDim2.new(0, 10, 0, 0)
+    sanityScrollFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    sanityScrollFrame.BorderSizePixel = 1
+    sanityScrollFrame.BorderColor3 = Color3.fromRGB(100, 100, 120)
+    sanityScrollFrame.ScrollBarThickness = 6
+    sanityScrollFrame.CanvasSize = UDim2.new(1, 0, 0, 200)
+    sanityScrollFrame.Parent = UI["PlayerSettings"]
+    
+    local sanityTemplate = Instance.new("TextLabel")
+    sanityTemplate.Name = "SanityTemplate"
+    sanityTemplate.Text = "Loading sanity..."
+    sanityTemplate.Size = UDim2.new(1, 0, 0, 20)
+    sanityTemplate.BackgroundTransparency = 1
+    sanityTemplate.TextColor3 = Color3.fromRGB(200, 200, 200)
+    sanityTemplate.TextSize = 11
+    sanityTemplate.Font = Enum.Font.Gotham
+    sanityTemplate.TextXAlignment = Enum.TextXAlignment.Left
+    sanityTemplate.Visible = false
+    sanityTemplate.Parent = sanityScrollFrame
+    
+    PlayerSanityFrame = sanityScrollFrame
+    SanityTemplate = sanityTemplate
+    
+    -- Update sanity every 0.5s
+    task.spawn(function()
+        while true do
+            UpdatePlrEnergy()
+            task.wait(0.5)
+        end
+    end)
+    -- ===================================
+    
     CreateSectionTitle("Controls", UI["SCF"])
     CreateLog("Left Mouse Button: Drag", UI["SCF"], 1, 156)
     CreateLog("Mouse Button 1: Zoom in/out", UI["SCF"], 2, 156)
@@ -3299,749 +3367,67 @@ if (GameState == "MainGame") then
     	return true
     end
     
-local function FireSpiritBox()
-	local args = {
-		"Are you far away?",
-		"Are you near?",
-		"Where are you?",
-		"What do you want?",
-		"When did you cross over?",
-		"Are you in the room with me?",
-		"Do you want us to leave?",
-		"When did you pass away?",
-		"What is your goal?",
-		"Why are you here?",
-		"How long ago did you die?",
-		"Is there a ghost here?"
-	}
-	game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("AskSpiritBoxFromUI"):FireServer(args[math.random(1, #args)])
-end
-
-local DelaySBTick = tick()
-local function UseSpiritBox()
-	local ghostModel = workspace:WaitForChild("Ghost")
-	local Chara = plr.Character
-	if Chara and AutoSpiritBoxToggle and ghostModel:GetAttribute("Hunting") ~= true then
-		Chara:PivotTo(ghostModel:GetPivot() * CFrame.new(0, 0, 10))
-	else
-		if Chara and AutoSpiritBoxToggle then
-			TpOutside()
-		end
-	end
-
-	if tick() - DelaySBTick > 0.5 and AutoSpiritBoxToggle and ghostModel:GetAttribute("Hunting") ~= true then
-		DelaySBTick = tick()
-
-		local Found, InvSlotNum = CheckInventory("Spirit Box")
-		if not CheckInventory("Spirit Box") then
-			local Found, Model = FindItem("Spirit Box")
-			if Found and Model then
-				PickupItem(Model)
-				task.wait(0.35)
-				ActiveItem()
-				task.wait(0.5)
-				local Found, InvSlotNum = CheckInventory("Spirit Box")
-				if Found then
-					EquipItem(InvSlotNum)
-					task.wait(0.5)
-					FireSpiritBox()
-				end
-			end
-		else
-			EquipItem(InvSlotNum)
-			task.wait(0.35)
-			ActiveItem()
-			task.wait(0.35)
-			FireSpiritBox()
-		end
-	end
-end
-    -- ========================================================
-        local passedLayers = 0
-    local function FindLowestTemperature()
-        local Temp = math.huge
-        local TempRoom = nil
-        if not value_21 then return Temp, TempRoom end
-        
-        for _, room in ipairs(value_21:GetChildren()) do
-            if room:GetAttribute("Temperature") ~= nil then
-                if room:GetAttribute("Temperature") < Temp then
-                    Temp = room:GetAttribute("Temperature")
-                    TempRoom = room
-                end
-            end
-        end
-        return Temp, TempRoom
+    function FireSpiritBox()
+    	local args = {
+    		"Are you far away?",
+    		"Are you near?",
+    		"Where are you?",
+    		"What do you want?",
+    		"When did you cross over?",
+    		"Are you in the room with me?",
+    		"Do you want us to leave?",
+    		"When did you pass away?",
+    		"What is your goal?",
+    		"Why are you here?",
+    		"How long ago did you die?",
+    		"Is there a ghost here?"
+    	}
+    	game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("AskSpiritBoxFromUI"):FireServer(args[math.random(1, #args)])
     end
-    -- ================================================
-    local flag_3 = false
-    local cached
-    for k_69, v_69 in pairs(child_21:GetChildren()) do
-        if (v_69:GetAttribute("ItemName") == "EMF Reader") then
-            if v_69:GetAttribute("CurrentReading") then
-                while v_69:GetAttribute("CurrentReading") do
-                    cached = v_69:GetAttribute("CurrentReading")
-                    task.wait(0.1)
-                end
-            end
-        end
-    end
-    local cached_2
-    local cached_3
-    for k_70, v_70 in pairs(child_21:GetChildren()) do
-        if (v_70:GetAttribute("ItemName") == "Flower Pot") then
-            cached_2 = v_70
-        elseif (v_70:GetAttribute("ItemName") == "Spirit Book") then
-            cached_3 = v_70
-        end
-    end
-    child_21['ChildAdded']:Connect(function(arg_2)
-        if (arg_2:GetAttribute("ItemName") == "Flower Pot") then
-            cached_2 = arg_2
-        elseif (arg_2:GetAttribute("ItemName") == "Spirit Book") then
-            cached_3 = arg_2
-        end
-    end)
-    CreateLog("None", UI["GhostTabInfo1"], 2, 185, false, "None", true, false)
-    task.spawn(function()
-        while true do
-            if (Workspace:FindFirstChild("Handprints") and Workspace['Handprints']:FindFirstChildWhichIsA("BasePart")) then
-                tbl["Handprints"] = true
-            end
-            for k_27, v_27 in pairs(value_21:GetChildren()) do
-                if v_27 then
-                    local temp = v_27:GetAttribute("Temperature")
-                    if temp then
-                        local tempValue = tonumber(temp) or temp  -- Convert string to number if needed
-                        if type(tempValue) == "number" and tempValue < 0 then
-                            tbl["Freezing Temperatures"] = true
-                        end
-                    end
-                end
-            end
-            if (Workspace and Workspace:FindFirstChild("GhostOrb")) then
-                tbl["Ghost Orb"] = true
-            end
-            if ((Ghost and Ghost:GetAttribute("LastEMFLevel5Time")) or (cached == 5)) then
-                tbl["EMF Level 5"] = true
-            end
-            if (Ghost and ((Ghost:GetAttribute("LaserVisible") == true) or (Ghost:GetAttribute("InLaser") == true))) then
-                tbl["Laser Projector"] = true
-            end
-            if cached_2 then
-                if (cached_2:GetAttribute("PhotoRewardType") == "WitheredFlowers") then
-                    tbl["Wither"] = true
-                end
-            end
-            -- Inscription: Check Spirit Book có Decal texture (ma đã viết)
-            if cached_3 then
-                for _, obj in ipairs(cached_3:GetDescendants()) do
-                    if obj:IsA("Decal") then
-                        local Model = obj:FindFirstAncestorWhichIsA("Model")
-                        if Model and Model:GetAttribute("ItemName") == "Spirit Book" then
-                            if obj.Texture ~= "" then  -- ✅ Decal có texture = ma viết
-                                tbl["Inscription"] = true
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-            
-            -- ===== UPDATE TEMPERATURE LABEL =====
-            local Temp, TempRoom = FindLowestTemperature()
-            if Temp and TempRoom then
-                if Temp < LowestTemp then
-                    LowestTemp = Temp
-                    LowestTempRoom = TempRoom
-                    TemperatureLabel['Text'] = string.format("Temperature: %.1f°C (%s)", LowestTemp, LowestTempRoom.Name)
-                    if LowestTemp < 0 then
-                        TemperatureLabel['TextColor3'] = Color3.fromRGB(0, 255, 0)  -- Green when freezing
-                        tbl["Freezing Temperatures"] = true  -- ✅ AUTO-MARK khi < 0
-                    else
-                        TemperatureLabel['TextColor3'] = Color3.fromRGB(255, 0, 0)  -- Red when warm
-                    end
-                end
-            end
-            -- =====================================
-            
-            if (PlayerGui and PlayerGui:FindFirstChild("Subtitles")) then
-                local child_6 = PlayerGui['Subtitles']:FindFirstChild("Holder"):FindFirstChild("TextLabel")
-                if child_6 then
-                    local subtitleText = child_6['Text']
-                    -- 35+ keywords từ các con ma - nếu subtitle chứa bất kỳ keyword nào thì đó là Spirit Box response
-                    local spiritBoxKeywords = {
-                        -- User's request keywords
-                        "ELDER", "BEHIND", "DEATH", "ATTACK", "FAR", "AWAY", "HATE", "FAR AWAY", "HURT", "KILL", "CLOSE", "DON'T TURN AROUND", "YOUNG",
-                        -- Original keywords
-                        "OLD", "I'M BEHIND YOU", "GET OUT", "RUN", "AFRAID", "ANGRY",
-                        "YES", "NO", "HERE", "STAY", "INSIDE", "OUTSIDE",
-                        "COMING", "FOUND", "WATCH", "LISTEN", "WAIT", "GO",
-                        "UP", "DOWN", "COLD", "HOT", "PAIN", "HELP",
-                        "LEAVE", "LOST", "GONE", "SOON", "NEXT", "NOW",
-                        "TRAPPED", "BOUND", "CURSED", "EVIL", "DARKNESS", "SCREAM"
-                    }
-                    for _, keyword in ipairs(spiritBoxKeywords) do
-                        if string.find(subtitleText, keyword, 1, true) then
-                            tbl["Spirit Box"] = true
-                            break
-                        end
-                    end
-                end
-            end
-            task.wait(0.5)
-        end
-    end)
-    local instance_12 = CreateToggle("Notify new evidences", UI["GhostTabInfo1"], 7, 185, 85, _, 75, 100)
-    local tbl_10 = {}
-    instance_12['Activated']:Connect(function()
-        flag_3 = not flag_3
-        while flag_3 do
-            if (next(tbl) ~= nil) then
-                for k_30, v_30 in pairs(UI["GhostTabInfo1"]:GetChildren()) do
-                    if (v_30:IsA("Frame") and (v_30['Name'] == "None")) then
-                        SetTransparency(0.25, v_30, 1)
-                        SetTransparency(0.25, v_30.UIStroke, 1)
-                        SetTransparency(0.25, v_30.TextLabel, 1)
-                        SetTransparency(0.25, v_30.Noice, 1)
-                        task.wait(0.25)
-                        v_30:Destroy()
-                    end
-                end
-            end
-            if (tbl["Handprints"] and not tbl_10["Handprints"]) then
-                tbl_10["Handprints"] = true
-                CreateLog("Handprints", UI["GhostTabInfo1"], 2, 185, false, _, true)
-                task.spawn(CreateKeybind, "New Evidence: Handprints", 2)
-            end
-            if (tbl["Freezing Temperatures"] and not tbl_10["Freezing Temperatures"]) then
-                tbl_10["Freezing Temperatures"] = true
-                CreateLog("Freezing Temperatures", UI["GhostTabInfo1"], 2, 185, false, _, true)
-                task.spawn(CreateKeybind, "New Evidence: Freezing Temperatures", 2)
-            end
-            if (tbl["Ghost Orb"] and not tbl_10["Ghost Orb"]) then
-                tbl_10["Ghost Orb"] = true
-                CreateLog("Ghost Orb", UI["GhostTabInfo1"], 2, 185, false, _, true)
-                task.spawn(CreateKeybind, "New Evidence: Ghost Orb", 2)
-            end
-            if (tbl["EMF Level 5"] and not tbl_10["EMF Level 5"]) then
-                tbl_10["EMF Level 5"] = true
-                CreateLog("EMF Level 5", UI["GhostTabInfo1"], 2, 185, false, _, true)
-                task.spawn(CreateKeybind, "New Evidence: EMF Level 5", 2)
-            end
-            if (tbl["Laser Projector"] and not tbl_10["Laser Projector"]) then
-                tbl_10["Laser Projector"] = true
-                CreateLog("Laser Projector", UI["GhostTabInfo1"], 2, 185, false, _, true)
-                task.spawn(CreateKeybind, "New Evidence: Laser Projector", 2)
-            end
-            if (tbl["Wither"] and not tbl_10["Wither"]) then
-                tbl_10["Wither"] = true
-                CreateLog("Wither", UI["GhostTabInfo1"], 2, 185, false, _, true)
-                task.spawn(CreateKeybind, "New Evidence: Withered Flowers", 2)
-            end
-            if (tbl["Inscription"] and not tbl_10["Inscription"]) then
-                tbl_10["Inscription"] = true
-                CreateLog("Inscription", UI["GhostTabInfo1"], 2, 185, false, _, true)
-                task.spawn(CreateKeybind, "New Evidence: Ghost Writing", 2)
-            end
-            if (tbl["Spirit Box"] and not tbl_10["Spirit Box"]) then
-                tbl_10["Spirit Box"] = true
-                CreateLog("Spirit Box", UI["GhostTabInfo1"], 2, 185, false, _, true)
-                task.spawn(CreateKeybind, "New Evidence: Spirit Box", 2)
-            end
-            task.wait(0.1)
-        end
-    end)
-    local value_23 = {["Aswang"]={"Wither","EMF Level 5","Inscription"},["Banshee"]={"Ghost Orb","Handprints","Freezing Temperatures"},["Demon"]={"EMF Level 5","Handprints","Freezing Temperatures"},["Dullahan"]={"Wither","Laser Projector","Freezing Temperatures"},["Dybbuk"]={"Wither","Handprints","Freezing Temperatures"},["Entity"]={"Spirit Box","Handprints","Laser Projector"},["Ghoul"]={"Spirit Box","Freezing Temperatures","Ghost Orb"},["Keres"]={"Wither","Handprints","Spirit Box"},["Leviathan"]={"Ghost Orb","Inscription","Handprints"},["Nightmare"]={"EMF Level 5","Spirit Box","Ghost Orb"},["Oni"]={"Spirit Box","Freezing Temperatures","Laser Projector"},["Phantom"]={"EMF Level 5","Handprints","Ghost Orb"},["Revenant"]={"Inscription","EMF Level 5","Freezing Temperatures"},["Shadow"]={"EMF Level 5","Inscription","Laser Projector"},["Siren"]={"Wither","Spirit Box","EMF Level 5"},["Doppelganger"]={"Freezing Temperatures","Inscription","Spirit Box"},["Specter"]={"EMF Level 5","Freezing Temperatures","Laser Projector"},["Spirit"]={"Handprints","Inscription","Spirit Box"},["Umbra"]={"Ghost Orb","Laser Projector","Handprints"},["Vex"]={"Wither","Ghost Orb","Freezing Temperatures"},["Wretch"]={"Ghost Orb","Inscription","Laser Projector"},["Wisp"]={"Wither","Laser Projector","Ghost Orb"},["Wraith"]={"EMF Level 5","Laser Projector","Spirit Box"}}
-    local function innerFn_4(parent_2, parent_3)
-        local obj_2 = {}
-        for k_13, v_13 in pairs(value_23) do
-            local flag_15 = true
-            for k_14, v_14 in pairs(parent_3) do
-                if v_14 then
-                    local flag_16 = false
-                    for k_15, v_15 in ipairs(v_13) do
-                        if (v_15 == k_14) then
-                            flag_16 = true
-                            break
-                        end
-                    end
-                    if not flag_16 then
-                        flag_15 = false
-                        break
-                    end
-                end
-            end
-            if flag_15 then
-                obj_2[k_13] = true
-            end
-        end
-        for k_16, v_16 in ipairs(parent_2:GetChildren()) do
-            if ((v_16['Name'] == "PossibleGhost") and not obj_2[v_16['TextLabel']['Text']]) then
-                v_16:Destroy()
-            end
-        end
-        local num = 500
-        for i in pairs(obj_2) do
-            local flag_17 = false
-            for k_17, v_17 in ipairs(parent_2:GetChildren()) do
-                if (v_17:FindFirstChild("TextLabel") and (v_17['TextLabel']['Text'] == i)) then
-                    flag_17 = true
-                    v_17['LayoutOrder'] = num
-                    break
-                end
-            end
-            if not flag_17 then
-                CreateLog(i, parent_2, num, 175, true, "PossibleGhost", true)
-            end
-        end
-    end
-    task.spawn(function()
-        while task.wait(0.1) do
-            innerFn_4(frame_8, tbl)
-        end
-    end)
-    local child_22 = PlayerGui:WaitForChild("Journal"):FindFirstChild("Holder"):FindFirstChild("Pages"):FindFirstChild("Page4"):FindFirstChild("Left"):FindFirstChild("Page"):FindFirstChild("EvidenceTypes")
-    local instance_13 = CreateToggle("Auto mark evidences", UI["GhostTabInfo1"], 8, 185, 85, _, 75, 100)
-    local flag_4 = false
-    local function findAndFire(parentNode, targetName, isGhost)
-        if not parentNode then return false end
-        -- Tìm node theo nhiều cách
-        local node = nil
-        -- 1. Tìm trực tiếp
-        node = parentNode:FindFirstChild(targetName)
-        -- 2. Case-insensitive
-        if not node then
-            local lower = string.lower(targetName:gsub(" ",""):gsub("_",""))
-            for _, c in ipairs(parentNode:GetChildren()) do
-                if string.lower(c.Name:gsub(" ",""):gsub("_","")) == lower then
-                    node = c; break
-                end
-            end
-        end
-        -- 3. Partial match (4 ký tự đầu)
-        if not node then
-            local prefix = string.lower(targetName:sub(1,4))
-            for _, c in ipairs(parentNode:GetChildren()) do
-                if string.find(string.lower(c.Name), prefix, 1, true) then
-                    node = c; break
-                end
-            end
-        end
-        if not node then
-            warn("[ESP] Không tìm thấy node:", targetName)
-            return false
-        end
-        -- Tìm Detection button - thử tất cả cấp
-        local detection = node:FindFirstChild("Detection")
-            or (node:FindFirstChild("Container") and node.Container:FindFirstChild("Detection"))
-            or node:FindFirstChildOfClass("TextButton")
-            or node:FindFirstChildWhichIsA("TextButton")
-        -- Deep search nếu vẫn không thấy
-        if not detection then
-            for _, desc in ipairs(node:GetDescendants()) do
-                if desc:IsA("TextButton") and (desc.Name == "Detection" or desc.Name == "Button") then
-                    detection = desc; break
-                end
-            end
-        end
-        if not detection then
-            warn("[ESP] Không tìm thấy Detection trong node:", node.Name)
-            return false
-        end
-        -- Fire click - không check Highlight vì có thể logic check sai
-        local conns = getconnections(detection.MouseButton1Click)
-        if #conns > 0 then
-            -- Chỉ fire nếu chưa được check (tìm Highlight hoặc check state)
-            local alreadyMarked = false
-            local highlight = node:FindFirstChild("Highlight") or detection.Parent:FindFirstChild("Highlight")
-            if highlight then
-                alreadyMarked = highlight.Visible
-            end
-            if not alreadyMarked then
-                conns[1]:Fire()
-            end
-            return true
-        end
-        return false
-    end
-
-    -- Tên node thật trong EvidenceTypes (từ debug console):
-    -- LaserProjector, Handprints, SpiritBox, EMFLevel5, GhostOrb, FreezingTemperatures, GhostWriting, Wither
-    local evidenceNodeMap = {
-        ["EMF Level 5"]           = {"EMFLevel5"},
-        ["Handprints"]            = {"Handprints"},
-        ["Spirit Box"]            = {"SpiritBox"},
-        ["Ghost Orb"]             = {"GhostOrb"},
-        ["Freezing Temperatures"] = {"FreezingTemperatures"},
-        ["Inscription"]         = {"GhostWriting"},
-        ["Laser Projector"]       = {"LaserProjector"},
-        ["Wither"]                = {"Wither"},
-    }
-
-    local function innerFn_5(a_11, b_11)
-        if not a_11 then return end
-        if not b_11 then
-            -- Mark evidence
-            local candidates = evidenceNodeMap[a_11]
-            if candidates then
-                for _, name in ipairs(candidates) do
-                    if findAndFire(child_22, name, false) then return end
-                end
-            end
-            -- Fallback với tên gốc
-            findAndFire(child_22, a_11, false)
-        else
-            -- Mark ghost type
-            local ghostTypesNode = PlayerGui:FindFirstChild("Journal") and
-                PlayerGui.Journal.Holder.Pages.Page4.Right.Page:FindFirstChild("GhostTypes")
-            findAndFire(ghostTypesNode, a_11, true)
-        end
-    end
-    local instance_14 = CreateToggle("Auto mark ghost types", UI["GhostTabInfo1"], 8, 185, 85, _, 75, 100)
-    AG = false
-    instance_14['Activated']:Connect(function()
-        AG = not AG
-        if AG then
-            while AG do
-                -- Tính toán ghost possible dựa trên evidence tìm được
-                local possibleGhosts = {}
-                local evidenceCount = 0
-                
-                -- Đếm số evidence tìm được
-                for evidenceName, found in pairs(tbl) do
-                    if found then
-                        evidenceCount = evidenceCount + 1
-                    end
-                end
-                
-                -- Nếu chưa tìm evidence, skip
-                if evidenceCount == 0 then
-                    task.wait(0.5)
-                    continue
-                end
-                
-                -- Tìm ghost nào còn possible (tất cả evidence tìm được đều nằm trong list của ghost)
-                for ghostName, evidenceList in pairs(value_23) do
-                    local isPossible = true
-                    for evidenceName, found in pairs(tbl) do
-                        if found then
-                            local inList = false
-                            for _, e in ipairs(evidenceList) do
-                                if e == evidenceName then
-                                    inList = true
-                                    break
-                                end
-                            end
-                            if not inList then
-                                isPossible = false
-                                break
-                            end
-                        end
-                    end
-                    if isPossible then
-                        table.insert(possibleGhosts, ghostName)
-                    end
-                end
-                
-                -- Auto mark ghost dựa trên số ghost còn possible:
-                -- - Nếu chỉ còn 1 ghost → auto mark nó (chắc chắn)
-                -- - Nếu > 1 ghost → mark tất cả để user dễ nhìn
-                if #possibleGhosts == 1 then
-                    local ghostName = possibleGhosts[1]
-                    innerFn_5(ghostName, true)
-                    CreateKeybind("Auto-marked: " .. ghostName, 2)
-                elseif #possibleGhosts > 1 then
-                    -- Mark tất cả possible ghost (để user dễ nhìn)
-                    for _, ghostName in ipairs(possibleGhosts) do
-                        pcall(function()
-                            innerFn_5(ghostName, true)
-                        end)
-                    end
-                end
-                
-                task.wait(0.5)
-            end
-        end
-    end)
-    local instance_15 = CreateToggle("Auto escape ghost hunts", frame_9, 9, 185, 85, _, 75, 100)
-    local flag_5 = false
-    instance_15['Activated']:Connect(function()
-        flag_5 = not flag_5
-        if flag_5 then
-            while flag_5 do
-                if value_21 then
-                    for k_32, v_32 in pairs(value_21:GetChildren()) do
-                        if (v_32['Name'] == "Base Camp") then
-                            if v_32:FindFirstChild("BoundingBox") then
-                                local value_25 = nil
-                                if v_32['BoundingBox']:IsA("Part") then
-                                    value_25 = v_32['BoundingBox']
-                                elseif (v_32['BoundingBox']:IsA("Folder") and v_32['BoundingBox']:FindFirstChild("Part")) then
-                                    value_25 = v_32['BoundingBox']['Part']
-                                end
-                                if (value_25 and (Ghost:GetAttribute("Hunting") == true)) then
-                                    HumanoidRootPart['CFrame'] = value_25['CFrame']
-                                    while (Ghost:GetAttribute("Hunting") == true) and flag_5 do
-                                        task.wait(0.5)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-                task.wait(0.1)
-            end
-        end
-    end)
     
-    -- Auto mark evidences toggle
-    instance_13['Activated']:Connect(function()
-        flag_4 = not flag_4
-        if flag_4 then
-            while flag_4 do
-                if tbl["EMF Level 5"] then
-                    innerFn_5("EMF Level 5")
-                end
-                if tbl["Handprints"] then
-                    innerFn_5("Handprints")
-                end
-                if tbl["Spirit Box"] then
-                    innerFn_5("Spirit Box")
-                end
-                if tbl["Ghost Orb"] then
-                    innerFn_5("Ghost Orb")
-                end
-                if tbl["Freezing Temperatures"] then
-                    innerFn_5("Freezing Temperatures")
-                end
-                if tbl["Inscription"] then
-                    innerFn_5("Inscription")
-                end
-                if tbl["Laser Projector"] then
-                    innerFn_5("Laser Projector")
-                end
-                if tbl["Wither"] then
-                    innerFn_5("Wither")
-                end
-                task.wait(0.1)
-            end
-        end
-    end)
-    if value_21 then
-        value_21:FindFirstChild("Base Camp"):FindFirstChild("Truck")
-        if value_21:FindFirstChild("Base Camp")['Truck'] then
-            local child_23 = value_21:FindFirstChild("Base Camp")['Truck']['Primary']['CFrame']
-            if (child_23 == CFrame.new(28.9760437, 3.68303895, -67.749176, 0, -1, 0, 0, 0, -1, 1, 0, 0)) then
-                Unused16 = "Fenway Drive"
-            elseif (child_23 == CFrame.new(23.4483738, -30.1618786, -64.6128387, 0, 1, 0, 0, 0, -1, -1, 0, 0)) then
-                Unused16 = "Juniper Road"
-            elseif (child_23 == CFrame.new(25.9909477, 3.73003864, -111.618744, 1, 0, 0, 0, 0, -1, 0, 1, 0)) then
-                Unused16 = "Lincoln Street"
-            elseif (child_23 == CFrame.new(152.138535, -6.1329999, -44.4111786, -0.998979926, 0.0451572537, -4.936009645462036E-07, -4.936009645462036E-07, -2.181529998779297E-05, -1, -0.0451572537, -0.998979926, 2.181529998779297E-05)) then
-                Unused16 = "Bodega"
-            elseif (child_23 == CFrame.new(70.0683899, 13.7799997, 157.604065, 0.981209278, -0.192946643, -1.7136335372924805E-06, 1.7136335372924805E-06, 1.7583370208740234E-05, -0.99999994, 0.192946643, 0.981209219, 1.7583370208740234E-05)) then
-                Unused16 = "Lilim Lane"
-            elseif (child_23 == CFrame.new(-33.8106422, 19.6800022, -15.1539326, -0.709856749, 0.704345942, -4.857778549194336E-06, -4.857778549194336E-06, -1.1801719665527344E-05, -0.99999994, -0.704345942, -0.709856808, 1.1861324310302734E-05)) then
-                Unused16 = "Cafe"
-            elseif (child_23 == CFrame.new(64.6408768, 89.4869995, -21.5065556, -0.923553705, 0.383469343, 3.6954879760742188E-06, 3.6954879760742188E-06, 1.8477439880371094E-05, -1, -0.383469343, -0.923553586, -1.8477439880371094E-05)) then
-                Unused16 = "Bridgewood"
-            elseif (child_23 == CFrame.new(126.896324, 3.70000172, 12.1818724, 0.0348294377, 0.999393463, 3.847479820251465E-05, -3.847479820251465E-05, 3.9696693420410156E-05, -1.00000024, -0.999393463, 0.0348296463, 3.9696693420410156E-05)) then
-                Unused16 = "Prison"
-            elseif (child_23 == CFrame.new(-5.04826546, 4.31711769, -89.8415756, -1, 0, "-0", 0, 0, -1, 0, -1, "-0")) then
-                Unused16 = "School"
-            elseif (child_23 == CFrame.new()) then
-                Unused16 = "Asylum"
-            elseif (child_23 == CFrame.new()) then
-                Unused16 = "Oakridge"
-            end
-        end
+    local DelaySBTick = tick()
+    
+    function UseSpiritBox()
+    	local ghostModel = workspace:FindFirstChild("Ghost")
+    	if not ghostModel then return end
+    	local Chara = LocalPlayer.Character
+    	
+    	if Chara and autoSpiritActive and ghostModel:GetAttribute("Hunting") ~= true then
+    		Chara:PivotTo(ghostModel:GetPivot() * CFrame.new(0, 0, 10))
+    	else
+    		if Chara and autoSpiritActive then
+    			TpOutside()
+    		end
+    	end
+    
+    	if tick() - DelaySBTick > 0.5 and autoSpiritActive and ghostModel:GetAttribute("Hunting") ~= true then
+    		DelaySBTick = tick()
+    		local Found, InvSlotNum = CheckInventory("Spirit Box")
+    		if not CheckInventory("Spirit Box") then
+    			local Found, Model = FindItem("Spirit Box")
+    			if Found and Model then
+    				PickupItem(Model)
+    				task.wait(0.35)
+    				ActiveItem()
+    				task.wait(0.5)
+    				local Found, InvSlotNum = CheckInventory("Spirit Box")
+    				if Found then
+    					EquipItem(InvSlotNum)
+    					task.wait(0.5)
+    					FireSpiritBox()
+    				end
+    			end
+    		else
+    			EquipItem(InvSlotNum)
+    			task.wait(0.35)
+    			ActiveItem()
+    			task.wait(0.35)
+    			FireSpiritBox()
+    		end
+    	end
     end
-    local cached_4
-    function Clone()
-        if UI["MapView"]:FindFirstChild("Map") then
-            UI["MapView"]['Map']:Destroy()
-        end
-        if UI["MapView"]:FindFirstChild("Items") then
-            UI["MapView"]['Items']:Destroy()
-        end
-        if child_19 then
-            local clone = child_19:Clone()
-            for k_19, v_19 in ipairs(clone:GetDescendants()) do
-                if v_19:IsA("BasePart") then
-                    v_19['Anchored'] = true
-                    v_19['Transparency'] = v_19['Transparency']
-                end
-            end
-            clone['Parent'] = UI["MapView"]
-            local child_24
-            if (clone['Rooms']:FindFirstChild("Base Camp"):FindFirstChild("BoundingBox") and clone['Rooms']:FindFirstChild("Base Camp")['BoundingBox']:IsA("Folder")) then
-                child_24 = clone['Rooms']:FindFirstChild("Base Camp")['BoundingBox']['Part']['CFrame']['Position'] + Vector3.new(0, 50, 0)
-            else
-                child_24 = clone['Rooms']:FindFirstChild("Base Camp")['BoundingBox']['Position'] + Vector3.new(0, 50, 0)
-            end
-            UI["Camera"]['CFrame'] = CFrame.new(child_24, child_24 + Vector3.new(0, -1, 0))
-            for k_20, v_20 in pairs(clone:GetDescendants()) do
-                if (Unused16 == "Fenway Drive") then
-                    if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 11) and (v_20['Position']['Y'] < 16)) then
-                        v_20:Destroy()
-                    end
-                elseif (Unused16 == "Juniper Road") then
-                    if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > -22) and (v_20['Position']['Y'] < -16)) then
-                        v_20:Destroy()
-                    end
-                elseif (Unused16 == "Lincoln Street") then
-                    if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 12) and (v_20['Position']['Y'] < 17)) then
-                        v_20:Destroy()
-                    end
-                elseif (Unused16 == "Bodega") then
-                    if (clone and clone:FindFirstChild("Exteriors"):FindFirstChild("Building")) then
-                        clone['Exteriors']['Building']:Destroy()
-                    end
-                    task.spawn(function()
-                        if (cached_4 == 1) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > -0.5) and (v_20['Position']['Y'] < 11)) then
-                                v_20:Destroy()
-                            end
-                            if (v_20:IsA("Folder") and (v_20['Name'] == "Ceilings")) then
-                                v_20:Destroy()
-                            end
-                        elseif (cached_4 == 2) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 10) and (v_20['Position']['Y'] < 10.5)) then
-                                v_20:Destroy()
-                            end
-                        end
-                    end)
-                elseif (Unused16 == "Lilim Lane") then
-                    task.spawn(function()
-                        if (cached_4 == 1) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 21) and (v_20['Position']['Y'] < 40)) then
-                                v_20:Destroy()
-                            end
-                            if (v_20:IsA("Folder") and (v_20['Name'] == "Ceilings")) then
-                                v_20:Destroy()
-                            end
-                        elseif (cached_4 == 2) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 33) and (v_20['Position']['Y'] < 40)) then
-                                v_20:Destroy()
-                            end
-                        end
-                    end)
-                elseif (Unused16 == "Cafe") then
-                    task.spawn(function()
-                        if (cached_4 == 1) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 29) and (v_20['Position']['Y'] < 52)) then
-                                v_20:Destroy()
-                            end
-                            if (v_20:IsA("Folder") and (v_20['Name'] == "Ceilings")) then
-                                v_20:Destroy()
-                            end
-                        elseif (cached_4 == 2) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 42) and (v_20['Position']['Y'] < 52)) then
-                                v_20:Destroy()
-                            end
-                        end
-                    end)
-                elseif (Unused16 == "Bridgewood") then
-                    task.spawn(function()
-                        if (cached_4 == 1) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 100) and (v_20['Position']['Y'] < 120)) then
-                                v_20:Destroy()
-                            end
-                            if (v_20:IsA("Folder") and (v_20['Name'] == "Ceilings")) then
-                                v_20:Destroy()
-                            end
-                        elseif (cached_4 == 2) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 115) and (v_20['Position']['Y'] < 120)) then
-                                v_20:Destroy()
-                            end
-                        end
-                    end)
-                elseif (Unused16 == "Prison") then
-                    task.spawn(function()
-                        if (cached_4 == 1) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 13) and (v_20['Position']['Y'] < 42)) then
-                                v_20:Destroy()
-                            end
-                            if ((v_20:IsA("Folder") and (v_20['Name'] == "Ceilings")) or (v_20:IsA("Model") and (v_20['Name'] == "AsphaltCeiling"))) then
-                                v_20:Destroy()
-                            end
-                        elseif (cached_4 == 2) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 26) and (v_20['Position']['Y'] < 42)) then
-                                v_20:Destroy()
-                            end
-                        end
-                    end)
-                elseif (Unused16 == "School") then
-                    task.spawn(function()
-                        if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 31) and (v_20['Position']['Y'] < 69)) then
-                            v_20:Destroy()
-                        end
-                        if (cached_4 == 1) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 16.5) and (v_20['Position']['Y'] < 69)) then
-                                v_20:Destroy()
-                            end
-                            if (v_20:IsA("Folder") and (v_20['Name'] == "Ceilings")) then
-                                v_20:Destroy()
-                            end
-                        elseif (cached_4 == 2) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 30) and (v_20['Position']['Y'] < 69)) then
-                                v_20:Destroy()
-                            end
-                        end
-                    end)
-                elseif (Unused16 == "Asylum") then
-                    task.spawn(function()
-                        if (cached_4 == 1) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 21) and (v_20['Position']['Y'] < 40)) then
-                                v_20:Destroy()
-                            end
-                            if (v_20:IsA("Folder") and (v_20['Name'] == "Ceilings")) then
-                                v_20:Destroy()
-                            end
-                        elseif (cached_4 == 2) then
-                            if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 33) and (v_20['Position']['Y'] < 40)) then
-                                v_20:Destroy()
-                            end
-                        end
-                    end)
-                elseif (Unused16 == "Oakbridge") then
-                    if ((v_20:IsA("BasePart") or v_20:IsA("UnionOperation")) and (v_20['Position']['Y'] > 11) and (v_20['Position']['Y'] < 16)) then
-                        v_20:Destroy()
-                    end
-                end
-            end
-        end
-        print(Unused16)
-        print(cached_4)
-        if child_21 then
-            local clone_2 = child_21:Clone()
-            clone_2['Parent'] = UI["MapView"]
-        end
-        return MFClone, IFClone
-    end
-    if ((Unused16 == "Bodega") or (Unused16 == "Lilim Lane") or (Unused16 == "Cafe") or (Unused16 == "Bridgewood") or (Unused16 == "Prison") or (Unused16 == "School") or (Unused16 == "Asylum")) then
-        CreateSectionTitle("Floors", UI["SCF"], -3)
-        local instance_16 = CreateButton("Floor 1", UI["SCF"], -4, 150)
-        local instance_17 = CreateButton("Floor 2", UI["SCF"], -4, 150)
-        cached_4 = 2
-        instance_17['Activated']:Connect(function()
-            if (cached_4 == 2) then
-                return
-            end
-            cached_4 = 2
-            Clone()
-            print(cached_4)
-        end)
-        instance_16['Activated']:Connect(function()
-            if (cached_4 == 1) then
-                return
-            end
-            cached_4 = 1
-            Clone()
-            print(cached_4)
-        end)
-    end
+    -- ========================================================
+    
     -- Auto Spirit Box - spam questions khi đã cầm và bật
     local autoSpiritActive = false
     local instance_auto_spirit = CreateButton("Auto Spirit Box", UI["SCF"], 10.5, 150)
