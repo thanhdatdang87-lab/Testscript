@@ -3320,7 +3320,7 @@ end
 local DelaySBTick = tick()
 local function UseSpiritBox()
 	local ghostModel = workspace:WaitForChild("Ghost")
-	local Chara = plr.Character
+	local Character = plr.Character
 	if Chara and AutoSpiritBoxToggle and ghostModel:GetAttribute("Hunting") ~= true then
 		Chara:PivotTo(ghostModel:GetPivot() * CFrame.new(0, 0, 10))
 	else
@@ -3367,7 +3367,7 @@ end
             CreateKeybind("Auto Spirit Box activated", 2)
             task.spawn(function()
                 while autoSpiritActive do
-                    UseSpiritBox()  -- ✅ CALL FULL DEMO FUNCTION
+                    UseSpiritBox() 
                     task.wait(0.3)
                 end
                 CreateKeybind("Auto Spirit Box deactivated", 2)
