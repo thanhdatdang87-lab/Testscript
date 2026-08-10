@@ -3237,40 +3237,48 @@ if (GameState == "MainGame") then
     local instance_30 = CreateButton("Teleport to the closest player", UI["SCF"], 10, 150)
     local instance_31 = CreateButton("Teleport to a random player", UI["SCF"], 11, 150)
     
-    -- ===== AUTO SPIRIT BOX - FULL FUNCTIONS FROM DEMO.LUA =====
-    function CheckInventory(ItemName)
-    	local Found = false
-    	local InvSlotNum = nil
-    	for _, obj in ipairs(LocalPlayer.PlayerGui.Hotbar.Slots:GetChildren()) do
-    		if obj:IsA("Frame") and string.find(string.lower(obj.Name), "invslot") then
-    			if obj.ItemName.Text == ItemName then
-    				Found = true
-    				local str = obj.Name
-    				local num = tonumber(str:match("%d+"))
-    				InvSlotNum = num
-    			end
-    		end
-    	end
-    	return Found, InvSlotNum
-    end
+-- ===== AUTO SPIRIT BOX - FIXED FULL CODE =====
+
+-- Khai báo LocalPlayer lên ĐẦU TỆP để tránh lỗi Nil ở các hàm bên dưới
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+function CheckInventory(ItemName)
+    local Found = false
+    local InvSlotNum = nil
+    if not LocalPlayer or not LocalPlayer:FindFirstChild("PlayerGui") then return Found, InvSlotNum end
     
-    function FindItem(ItemName)
-    	local Found = false
-    	local Model = nil
-    	local ItemFolder = workspace.Items
-    	for _, v in pairs(ItemFolder:GetChildren()) do
-    		if v:IsA("Model") and v:GetAttribute("ItemName") then
-    			if v:GetAttribute("ItemName") == ItemName then
-    				Found = true
-    				Model = v
-    			end
-    		end
-    	end
-    	return Found, Model
+    local Hotbar = LocalPlayer.PlayerGui:FindFirstChild("Hotbar")
+    if Hotbar and Hotbar:FindFirstChild("Slots") then
+        for _, obj in ipairs(Hotbar.Slots:GetChildren()) do
+            if obj:IsA("Frame") and string.find(string.lower(obj.Name), "invslot") then
+                if obj:FindFirstChild("ItemName") and obj.ItemName.Text == ItemName then
+                    Found = true
+                    local str = obj.Name
+                    local num = tonumber(str:match("%d+"))
+                    InvSlotNum = num
+                end
+            end
+        end
     end
-    
--- Fix khai báo LocalPlayer chuẩn
-local LocalPlayer = game.Players.LocalPlayer
+    return Found, InvSlotNum
+end
+
+function FindItem(ItemName)
+    local Found = false
+    local Model = nil
+    local ItemFolder = workspace:FindFirstChild("Items")
+    if ItemFolder then
+        for _, v in pairs(ItemFolder:GetChildren()) do
+            if v:IsA("Model") and v:GetAttribute("ItemName") then
+                if v:GetAttribute("ItemName") == ItemName then
+                    Found = true
+                    Model = v
+                end
+            end
+        end
+    end
+    return Found, Model
+end
 
 function ActiveItem()
     local ItemModel = nil
@@ -3279,7 +3287,6 @@ function ActiveItem()
         for _, v in pairs(Chara:GetChildren()) do
             if v:IsA("Model") or tonumber(v.Name) then
                 ItemModel = v
-                -- SỬA LỖI: Kiểm tra CHƯA BẬT (~= true) thì mới gửi Remote Bật
                 if v:GetAttribute("Enabled") ~= true then
                     local Handle = v:FindFirstChild("Handle")
                     if Handle then
@@ -3318,13 +3325,14 @@ function UseSpiritBox()
     local ghostModel = workspace:FindFirstChild("Ghost")
     if not ghostModel then return end
     
-    local LocalPlayer = game.Players.LocalPlayer
     local Chara = LocalPlayer and LocalPlayer.Character
     if not Chara then return end
 
-    -- Né Hunt hoặc Teleport lại gần Ma
+    -- Teleport lại gần Ma khi không Hunt
     if autoSpiritActive and ghostModel:GetAttribute("Hunting") ~= true then
-        Chara:PivotTo(ghostModel:GetPivot() * CFrame.new(0, 0, 10))
+        pcall(function()
+            Chara:PivotTo(ghostModel:GetPivot() * CFrame.new(0, 0, 10))
+        end)
     elseif autoSpiritActive then
         if typeof(TpOutside) == "function" then TpOutside() end
     end
@@ -3358,9 +3366,9 @@ function UseSpiritBox()
     end
 end
 
-    -- ========================================================
-    
--- Auto Spirit Box
+-- ========================================================
+-- TOGGLE AUTO SPIRIT BOX
+-- ========================================================
 local autoSpiritActive = false
 local instance_auto_spirit = CreateButton("Auto Spirit Box", UI["SCF"], 10.5, 150)
 instance_auto_spirit['Activated']:Connect(function()
@@ -3369,9 +3377,7 @@ instance_auto_spirit['Activated']:Connect(function()
         CreateKeybind("Auto Spirit Box activated", 2)
         task.spawn(function()
             while autoSpiritActive do
-                if typeof(UseSpiritBox) == "function" then
-                    UseSpiritBox()
-                end
+                pcall(UseSpiritBox)
                 task.wait(0.3)
             end
         end)
@@ -3379,220 +3385,3 @@ instance_auto_spirit['Activated']:Connect(function()
         CreateKeybind("Auto Spirit Box deactivated", 2)
     end
 end)
-
-CreateSectionTitle("Ghost", UI["SCF"], 12)
-
-local instance_32 = CreateButton("Teleport to the ghost", UI["SCF"], 13, 150)
-local instance_33 = CreateButton("Teleport to the ghost room", UI["SCF"], 14, 150)
-
--- Teleport tới Con Ma
-instance_32['Activated']:Connect(function()
-    local plr = game.Players.LocalPlayer
-    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-    local ghost = workspace:FindFirstChild("Ghost")
-    
-    if hrp and ghost and ghost:FindFirstChild("HumanoidRootPart") then
-        hrp.CFrame = ghost.HumanoidRootPart.CFrame
-    end
-end)
-
--- Teleport tới Phòng Ma
-instance_33['Activated']:Connect(function()
-    local plr = game.Players.LocalPlayer
-    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-    local ghost = workspace:FindFirstChild("Ghost")
-    
-    if hrp and ghost then
-        local favRoom = ghost:GetAttribute("FavoriteRoom")
-        local mapFolder = workspace:FindFirstChild("Map") or workspace:FindFirstChild("House") or workspace:FindFirstChild("Rooms")
-        
-        if favRoom and mapFolder then
-            local room = mapFolder:FindFirstChild(favRoom)
-            if room then
-                local bbox = room:FindFirstChild("BoundingBox")
-                if bbox then
-                    if bbox:IsA("BasePart") then
-                        hrp.CFrame = bbox.CFrame
-                    elseif bbox:IsA("Folder") and bbox:FindFirstChild("Part") then
-                        hrp.CFrame = bbox.Part.CFrame
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Teleport về Trại (Base Camp)
-local base_camp_button = CreateButton("Teleport To Base Camp", UI["SCF"], 15, 150)
-base_camp_button['Activated']:Connect(function()
-    local plr = game.Players.LocalPlayer
-    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-    local mapFolder = workspace:FindFirstChild("Map") or workspace:FindFirstChild("House") or workspace:FindFirstChild("Rooms")
-    
-    if hrp and mapFolder then
-        local baseCamp = mapFolder:FindFirstChild("Base Camp") or workspace:FindFirstChild("Base Camp")
-        if baseCamp then
-            local bbox = baseCamp:FindFirstChild("BoundingBox")
-            if bbox then
-                if bbox:IsA("BasePart") then
-                    hrp.CFrame = bbox.CFrame
-                elseif bbox:IsA("Folder") then
-                    local children = bbox:GetChildren()
-                    if #children > 0 then
-                        local randomPart = children[math.random(1, #children)]
-                        if randomPart:IsA("BasePart") then
-                            hrp.CFrame = randomPart.CFrame
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Teleport tới 1 Người chơi bất kỳ (Trừ Ma)
-instance_30['Activated']:Connect(function()
-    local Players = game:GetService("Players")
-    local plr = Players.LocalPlayer
-    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-    
-    if #Players:GetPlayers() <= 1 then
-        CreateKeybind("You are playing alone.", 2)
-        return
-    end
-    
-    if hrp then
-        for _, v in pairs(workspace:GetChildren()) do
-            if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
-                if v.Name ~= "Ghost" and v.Name ~= plr.Name then
-                    hrp.CFrame = v.HumanoidRootPart.CFrame
-                    break
-                end
-            end
-        end
-    end
-end)
-
--- Teleport ngẫu nhiên tới Đồng đội
-instance_31['Activated']:Connect(function()
-    local Players = game:GetService("Players")
-    local plr = Players.LocalPlayer
-    local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-    
-    if #Players:GetPlayers() <= 1 then
-        CreateKeybind("You are playing alone.", 2)
-        return
-    end
-    
-    local targetList = {}
-    for _, v in pairs(workspace:GetChildren()) do
-        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
-            if v.Name ~= "Ghost" and v.Name ~= plr.Name then
-                table.insert(targetList, v)
-            end
-        end
-    end
-    
-    if hrp and #targetList > 0 then
-        local randomPlayer = targetList[math.random(1, #targetList)]
-        hrp.CFrame = randomPlayer.HumanoidRootPart.CFrame
-    end
-end)
-
-    for k_72, v_72 in pairs(UI["2"]:GetDescendants()) do
-        if (v_72['Name'] == "Divider") then
-            v_72['Size'] = UDim2.new(v_72['Size']['X'].Scale, v_72['Size']['X'].Offset, v_72['Size']['Y'].Scale, 1)
-        end
-    end
-    task.spawn(function()
-        local value_35 = game:GetService("RunService")
-        local value_36 = game:GetService("UserInputService")
-        local flag_2 = false
-        local vec2_2 = Vector2.new(0, 0)
-        local value_37 = UI["2"]:FindFirstChildOfClass("UIDragDetector")
-        child_21['ChildAdded']:Connect(function()
-            if child_21 then
-                if UI["MapView"]:FindFirstChild("Items") then
-                    UI["MapView"]['Items']:Destroy()
-                end
-                local clone_3 = child_21:Clone()
-                clone_3['Parent'] = UI["MapView"]
-            end
-        end)
-        child_21['ChildRemoved']:Connect(function()
-            if child_21 then
-                if UI["MapView"]:FindFirstChild("Items") then
-                    UI["MapView"]['Items']:Destroy()
-                end
-                local clone_4 = child_21:Clone()
-                clone_4['Parent'] = UI["MapView"]
-            end
-        end)
-        local flag_2 = false
-        local vec2_2 = Vector2.new(0, 0)
-        value_36['InputChanged']:Connect(function(input_5)
-            if (input_5['UserInputType'] ~= Enum['UserInputType']['MouseWheel']) then
-                return
-            end
-            local mousePos_2 = value_36:GetMouseLocation()
-            local value_38 = LocalPlayer['PlayerGui']:GetGuiObjectsAtPosition(mousePos_2.X, mousePos_2.Y)
-            for k_65, v_65 in ipairs(value_38) do
-                if (v_65 == UI["MapView"]) then
-                    local pos_6 = ((input_5['Position']['Z'] > 0) and -5) or 5
-                    UI["Camera"]['CFrame'] = UI["Camera"]['CFrame'] - (UI["Camera"]['CFrame']['LookVector'] * pos_6)
-                    break
-                end
-            end
-        end)
-        UI["MapView"]['InputBegan']:Connect(function(input_6)
-            if (input_6['UserInputType'] == Enum['UserInputType']['MouseButton1']) then
-                flag_2 = true
-                UI["FrameDragDetector"]['Enabled'] = false
-                vec2_2 = value_36:GetMouseLocation()
-            end
-        end)
-        UI["MapView"]['InputEnded']:Connect(function(input_7)
-            if (input_7['UserInputType'] == Enum['UserInputType']['MouseButton1']) then
-                flag_2 = false
-                UI["FrameDragDetector"]['Enabled'] = true
-            end
-        end)
-        UI["MapView"]['InputBegan']:Connect(function(input_8)
-            if (input_8['UserInputType'] == Enum['UserInputType']['MouseButton2']) then
-                local absPos_2 = UI["MapView"]['AbsolutePosition']
-                local absSize_2 = UI["MapView"]['AbsoluteSize']
-                local mousePos_3 = value_36:GetMouseLocation()
-                local value_39 = mousePos_3['Y'] - 36
-                local value_40 = mousePos_3['X'] - absPos_2['X']
-                local value_41 = value_39 - absPos_2['Y']
-                if ((value_40 >= 0) and (value_40 <= absSize_2['X']) and (value_41 >= 0) and (value_41 <= absSize_2['Y'])) then
-                    local value_42 = UI["MapView"]['CurrentCamera']
-                    if value_42 then
-                        local value_43 = value_42['ViewportSize']
-                        local value_44 = (value_40 / absSize_2['X']) * value_43['X']
-                        local value_45 = (value_41 / absSize_2['Y']) * value_43['Y']
-                        local value_46 = value_42:ViewportPointToRay(value_44, value_45)
-                        local hit_2 = workspace:Raycast(value_46.Origin, value_46['Direction'] * 10000)
-                        if hit_2 then
-                            HumanoidRootPart['CFrame'] = CFrame.new(hit_2.Position) * HumanoidRootPart['CFrame']['Rotation']
-                        end
-                    end
-                end
-            end
-        end)
-        game:GetService("RunService")['RenderStepped']:Connect(function()
-            if not flag_2 then
-                return
-            end
-            local mousePos_4 = value_36:GetMouseLocation()
-            local value_47 = mousePos_4 - vec2_2
-            if (value_47['Magnitude'] > 0) then
-                local num_2 = 0.1
-                local pos_7 = UI["Camera"]['CFrame']['Position']
-                local value_48 = pos_7 + Vector3.new(value_47['Y'] * num_2, 0, -value_47['X'] * num_2)
-                UI["Camera"]['CFrame'] = CFrame.new(value_48) * (UI["Camera"]['CFrame'] - pos_7)
-                vec2_2 = mousePos_4
-            end
-        end)
-    end)
-end
